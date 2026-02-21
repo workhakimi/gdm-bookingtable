@@ -1,0 +1,14 @@
+{
+  "name": "ww-booking-sheet-table",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "weweb build",
+    "serve": "weweb serve"
+  },
+  "dependencies": {
+    "vue": "^3.x"
+  },
+  "devDependencies": {
+    "@weweb/cli": "latest"
+  }
+}
