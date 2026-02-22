@@ -279,7 +279,7 @@ export default {
         wwEditorState: { type: Object, required: true },
         /* wwEditor:end */
     },
-    emits: ['trigger-event', 'update:content'],
+    emits: ['trigger-event'],
     setup(props, { emit }) {
 
         const { resolveMappingFormula } = wwLib.wwFormula.useFormula();
@@ -739,42 +739,6 @@ export default {
             return override !== undefined ? override : null;
         }
 
-        // ═══════════ Column list actions: editor auto-assigns order; up/down reorder array ═══════════
-
-        function addColumn() {
-            const cols = [...(props.content?.columns || [])];
-            cols.push({
-                source: 'header',
-                field: '',
-                title: '',
-                width: 150,
-                formatter: 'text',
-                visible: true,
-            });
-            emit('update:content', { columns: cols });
-        }
-
-        function removeColumn(index) {
-            const cols = [...(props.content?.columns || [])];
-            if (index < 0 || index >= cols.length) return;
-            cols.splice(index, 1);
-            emit('update:content', { columns: cols });
-        }
-
-        function moveColumnUp(index) {
-            if (index <= 0) return;
-            const cols = [...(props.content?.columns || [])];
-            [cols[index - 1], cols[index]] = [cols[index], cols[index - 1]];
-            emit('update:content', { columns: cols });
-        }
-
-        function moveColumnDown(index) {
-            const cols = [...(props.content?.columns || [])];
-            if (index >= cols.length - 1) return;
-            [cols[index], cols[index + 1]] = [cols[index + 1], cols[index]];
-            emit('update:content', { columns: cols });
-        }
-
         const statusColorMap = computed(() => props.content?.statusColorMap || {});
 
         function badgeStyle(value) {
@@ -904,7 +868,6 @@ export default {
             formatCell, getDisplayOverride, getLineCellDisplay, badgeStyle,
             rootStyles, thClasses, headerTdClasses, lineItemTdClasses, mergedCellClasses, rowClasses,
             clearSelection, selectAll, selectHeaders, clearFilters,
-            addColumn, removeColumn, moveColumnUp, moveColumnDown,
         };
     },
 };
