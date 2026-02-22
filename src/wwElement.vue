@@ -1,5 +1,5 @@
 <template>
-    <div class="bst-root" :style="rootStyles">
+    <div class="bst-root" :style="rootStyles" @click="closeFilterPopover">
         <!-- Toolbar -->
         <div v-if="showToolbar" class="bst-toolbar">
             <div v-if="content.showGlobalSearch" class="bst-search-wrap">
@@ -21,10 +21,10 @@
             <div class="bst-toolbar-spacer"></div>
             <div class="bst-toolbar-stats">
                 <span class="bst-stat">{{ filteredGroups.length }} <span class="bst-stat-label">groups</span></span>
-                <span class="bst-stat-sep">·</span>
+                <span class="bst-stat-sep">&middot;</span>
                 <span class="bst-stat">{{ totalLineItems }} <span class="bst-stat-label">items</span></span>
                 <template v-if="selectedCount > 0">
-                    <span class="bst-stat-sep">·</span>
+                    <span class="bst-stat-sep">&middot;</span>
                     <span class="bst-stat bst-stat-selected">{{ selectedCount }} <span class="bst-stat-label">selected</span></span>
                 </template>
             </div>
@@ -42,7 +42,6 @@
                     />
                 </colgroup>
 
-                <!-- Table head -->
                 <thead class="bst-thead">
                     <tr class="bst-head-row">
                         <th v-if="selectionEnabled" class="bst-th bst-th-checkbox bst-th-sticky">
@@ -60,61 +59,65 @@
                             :key="'th-' + col._uid"
                             class="bst-th bst-th-sticky"
                             :class="thClasses(col)"
-                            :style="thStyle(col)"
                         >
-                            <div
-                                class="bst-th-content"
-                                :class="{ 'bst-sortable': col.sortable }"
-                                @click="col.sortable ? handleSort(col) : null"
-                            >
-                                <span class="bst-th-label">{{ col.label || col.field }}</span>
-                                <span v-if="sortState.field === col._sortKey" class="bst-sort-icon bst-sort-active">
-                                    <svg v-if="sortState.direction === 'asc'" viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 3l5 6H3z"/></svg>
-                                    <svg v-else viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 13l5-6H3z"/></svg>
-                                </span>
-                                <span v-else-if="col.sortable" class="bst-sort-icon bst-sort-hint">
-                                    <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M8 4l3 3.5H5z"/><path d="M8 12l3-3.5H5z"/></svg>
-                                </span>
+                            <div class="bst-th-inner">
+                                <div class="bst-th-content bst-sortable" @click="handleSort(col)">
+                                    <span class="bst-th-label">{{ col.title?.trim() || col.field }}</span>
+                                    <span v-if="sortState.field === col._sortKey" class="bst-sort-icon bst-sort-active">
+                                        <svg v-if="sortState.direction === 'asc'" viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 3l5 6H3z"/></svg>
+                                        <svg v-else viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 13l5-6H3z"/></svg>
+                                    </span>
+                                    <span v-else class="bst-sort-icon bst-sort-hint">
+                                        <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M8 4l3 3.5H5z"/><path d="M8 12l3-3.5H5z"/></svg>
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="bst-col-filter-btn"
+                                    :class="{ 'bst-col-filter-btn-active': hasActiveFilter(col) }"
+                                    @click.stop="toggleFilterPopover(col)"
+                                    title="Filter this column"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    </svg>
+                                </button>
                             </div>
+
+                            <!-- Per-column filter popover -->
+                            <div
+                                v-if="activeFilterCol === col._uid"
+                                class="bst-col-filter-popover"
+                                @click.stop
+                            >
+                                <div class="bst-col-filter-input-wrap">
+                                    <input
+                                        type="text"
+                                        class="bst-col-filter-input"
+                                        :value="columnFilters[col._filterKey] || ''"
+                                        @input="setColumnFilter(col, $event.target.value)"
+                                        placeholder="Type to filter..."
+                                        ref="filterPopoverInputRef"
+                                    />
+                                    <button
+                                        v-if="hasActiveFilter(col)"
+                                        type="button"
+                                        class="bst-col-filter-input-clear"
+                                        @click="setColumnFilter(col, '')"
+                                    >
+                                        <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M12.2 3.8a.6.6 0 0 0-.8 0L8 7.2 4.6 3.8a.6.6 0 0 0-.8.8L7.2 8l-3.4 3.4a.6.6 0 0 0 .8.8L8 8.8l3.4 3.4a.6.6 0 0 0 .8-.8L8.8 8l3.4-3.4a.6.6 0 0 0 0-.8z"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div
                                 class="bst-resize-handle"
                                 @mousedown.prevent="startResize(col, $event)"
                             ></div>
                         </th>
                     </tr>
-
-                    <!-- Filter row -->
-                    <tr v-if="content.showFilterRow" class="bst-filter-row">
-                        <th v-if="selectionEnabled" class="bst-th bst-th-checkbox bst-th-filter-sticky"></th>
-                        <th
-                            v-for="col in visibleColumns"
-                            :key="'flt-' + col._uid"
-                            class="bst-th bst-th-filter bst-th-filter-sticky"
-                            :class="thFilterClasses(col)"
-                            :style="thStyle(col)"
-                        >
-                            <div v-if="col.filterable" class="bst-filter-wrap" :class="{ 'bst-filter-active': hasActiveFilter(col) }">
-                                <input
-                                    type="text"
-                                    class="bst-filter-input"
-                                    :value="columnFilters[col._filterKey] || ''"
-                                    @input="setColumnFilter(col, $event.target.value)"
-                                    placeholder="Filter..."
-                                />
-                                <button
-                                    v-if="hasActiveFilter(col)"
-                                    type="button"
-                                    class="bst-filter-clear"
-                                    @click="setColumnFilter(col, '')"
-                                >
-                                    <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M12.2 3.8a.6.6 0 0 0-.8 0L8 7.2 4.6 3.8a.6.6 0 0 0-.8.8L7.2 8l-3.4 3.4a.6.6 0 0 0 .8.8L8 8.8l3.4 3.4a.6.6 0 0 0 .8-.8L8.8 8l3.4-3.4a.6.6 0 0 0 0-.8z"/></svg>
-                                </button>
-                            </div>
-                        </th>
-                    </tr>
                 </thead>
 
-                <!-- Table body -->
                 <tbody>
                     <template v-for="(group, gi) in paginatedGroups" :key="group.headerId">
                         <tr
@@ -124,7 +127,6 @@
                             :class="rowClasses(group, item, ii, gi)"
                             @click="handleRowClick(group, item)"
                         >
-                            <!-- Selection checkbox: first row of group only -->
                             <td
                                 v-if="selectionEnabled && ii === 0"
                                 :rowspan="group.items.length"
@@ -140,25 +142,20 @@
                                 />
                             </td>
 
-                            <!-- All visible columns -->
                             <template v-for="col in visibleColumns" :key="col._uid + '-' + item._stableId">
-                                <!-- Header column: merged cell on first row -->
                                 <td
                                     v-if="col.source === 'header' && ii === 0"
                                     :rowspan="group.items.length"
                                     class="bst-td bst-td-header"
                                     :class="headerTdClasses(col, group)"
-                                    :style="tdStyle(col)"
                                 >
                                     <span class="bst-cell-text">{{ formatCell(group.header[col.field], col) }}</span>
                                 </td>
 
-                                <!-- Line item column: every row -->
                                 <td
                                     v-if="col.source === 'lineitem'"
                                     class="bst-td bst-td-lineitem"
                                     :class="lineItemTdClasses(col, group, item)"
-                                    :style="tdStyle(col)"
                                 >
                                     <img
                                         v-if="col.formatter === 'image' && item[col.field]"
@@ -179,7 +176,6 @@
                         </tr>
                     </template>
 
-                    <!-- Empty state -->
                     <tr v-if="paginatedGroups.length === 0" class="bst-empty-row">
                         <td :colspan="totalColspan" class="bst-empty-cell">
                             <div class="bst-empty-content">
@@ -189,6 +185,7 @@
                                     <line x1="9" y1="3" x2="9" y2="21" />
                                 </svg>
                                 <span v-if="hasAnyFilter" class="bst-empty-text">No results match your filters</span>
+                                <span v-else-if="visibleColumns.length === 0" class="bst-empty-text">Add columns to configure the table</span>
                                 <span v-else class="bst-empty-text">No data to display</span>
                                 <button v-if="hasAnyFilter" type="button" class="bst-empty-clear-btn" @click="clearFilters">Clear all filters</button>
                             </div>
@@ -198,7 +195,7 @@
             </table>
         </div>
 
-        <!-- Pagination bar -->
+        <!-- Pagination -->
         <div v-if="paginationEnabled && totalPages > 1" class="bst-pagination">
             <button type="button" class="bst-page-btn" :disabled="currentPage <= 1" @click="goToPage(1)" title="First page">
                 <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M11.7 12.3L7.4 8l4.3-4.3L10.3 2.3 4.6 8l5.7 5.7z"/><path d="M7.7 12.3L3.4 8l4.3-4.3L6.3 2.3.6 8l5.7 5.7z"/></svg>
@@ -218,7 +215,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
 function normalizeStr(v) {
     return v == null ? '' : String(v).toLowerCase().trim();
@@ -292,35 +289,12 @@ export default {
             return (raw ? wwLib.wwUtils.getDataFromCollection(raw) : null) || [];
         });
 
-        const referenceItems = computed(() => {
-            const raw = props.content?.referenceData;
-            return (raw ? wwLib.wwUtils.getDataFromCollection(raw) : null) || [];
-        });
-
         // ═══════════ 2. RELATIONSHIP KEYS ═══════════
 
         const hKeyField = computed(() => props.content?.headerKeyField || 'id');
         const liForeignKey = computed(() => props.content?.lineItemForeignKey || 'headerid');
-        const refKeyField = computed(() => props.content?.referenceKeyField || 'sku');
-        const liRefJoinField = computed(() => props.content?.lineItemRefJoinField || 'sku');
-        const ciJoin = computed(() => props.content?.caseInsensitiveJoin !== false);
 
-        // ═══════════ 3. REFERENCE LOOKUP ═══════════
-
-        const refLookup = computed(() => {
-            const map = {};
-            const keyField = refKeyField.value;
-            const ci = ciJoin.value;
-            for (const item of referenceItems.value) {
-                const key = findFieldCI(item, keyField);
-                if (key == null) continue;
-                const mapKey = ci ? String(key).toLowerCase() : String(key);
-                map[mapKey] = item;
-            }
-            return map;
-        });
-
-        // ═══════════ 4. ENRICHED LINE ITEMS (stable IDs) ═══════════
+        // ═══════════ 3. STABLE IDS FOR LINE ITEMS ═══════════
 
         const stableIdCache = new WeakMap();
         let stableIdSeq = 0;
@@ -334,31 +308,11 @@ export default {
             return id;
         }
 
-        const enrichedLineItems = computed(() => {
-            const joinField = liRefJoinField.value;
-            const ci = ciJoin.value;
-            const lookup = refLookup.value;
+        const processedLineItems = computed(() =>
+            lineItems.value.map(li => ({ ...li, _stableId: getStableId(li) }))
+        );
 
-            return lineItems.value.map(li => {
-                const enriched = { ...li, _stableId: getStableId(li) };
-
-                const joinVal = findFieldCI(li, joinField);
-
-                if (joinVal != null) {
-                    const lookupKey = ci ? String(joinVal).toLowerCase() : String(joinVal);
-                    const refObj = lookup[lookupKey];
-                    if (refObj) {
-                        for (const [rk, rv] of Object.entries(refObj)) {
-                            enriched['ref_' + rk.toLowerCase()] = rv;
-                        }
-                    }
-                }
-
-                return enriched;
-            });
-        });
-
-        // ═══════════ 5. GROUP HEADERS + LINE ITEMS ═══════════
+        // ═══════════ 4. GROUP HEADERS + LINE ITEMS ═══════════
 
         const EMPTY_SENTINEL = Object.freeze({ _empty: true, _stableId: '__bst_empty' });
 
@@ -367,7 +321,7 @@ export default {
             const fk = liForeignKey.value;
             const itemsByHeader = {};
 
-            for (const li of enrichedLineItems.value) {
+            for (const li of processedLineItems.value) {
                 const fkVal = findFieldCI(li, fk);
                 const key = fkVal != null ? String(fkVal) : '__none__';
                 if (!itemsByHeader[key]) itemsByHeader[key] = [];
@@ -384,20 +338,20 @@ export default {
             });
         });
 
-        // ═══════════ 6. COLUMNS ═══════════
+        // ═══════════ 5. COLUMNS ═══════════
 
         const rawColumns = computed(() => {
             const cols = props.content?.columns;
             if (!Array.isArray(cols)) return [];
             return cols.map((c, i) => ({
                 ...c,
-                _uid: c.field + '_' + c.source + '_' + i,
-                _sortKey: c.source + '.' + c.field,
-                _filterKey: c.source + '.' + c.field,
+                _uid: (c.field || 'col') + '_' + (c.source || 'h') + '_' + i,
+                _sortKey: (c.source || 'header') + '.' + (c.field || ''),
+                _filterKey: (c.source || 'header') + '.' + (c.field || ''),
             }));
         });
 
-        const visibleColumns = computed(() => rawColumns.value.filter(c => c.visible !== false));
+        const visibleColumns = computed(() => rawColumns.value.filter(c => c.visible !== false && c.field));
 
         const selectionEnabled = computed(() => !!props.content?.selectionEnabled);
         const multiSelect = computed(() => !!props.content?.multiSelect);
@@ -406,7 +360,7 @@ export default {
         const totalColspan = computed(() => {
             let n = visibleColumns.value.length;
             if (selectionEnabled.value) n++;
-            return n;
+            return Math.max(n, 1);
         });
 
         const densityClass = computed(() => 'bst-density-' + (props.content?.rowDensity || 'normal'));
@@ -415,7 +369,7 @@ export default {
             props.content?.showGlobalSearch || paginationEnabled.value || headers.value.length > 0
         );
 
-        // ═══════════ 7. COLUMN WIDTHS (resizable) ═══════════
+        // ═══════════ 6. COLUMN WIDTHS (resizable) ═══════════
 
         const columnWidthOverrides = ref({});
 
@@ -448,7 +402,7 @@ export default {
             document.body.style.userSelect = '';
         }
 
-        // ═══════════ 8. SORTING (tri-state: asc → desc → clear) ═══════════
+        // ═══════════ 7. SORTING (tri-state: asc → desc → clear) ═══════════
 
         const sortState = ref({ field: null, direction: null, source: null });
 
@@ -456,7 +410,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            if (!col.sortable) return;
+            closeFilterPopover();
             const key = col._sortKey;
 
             if (sortState.value.field !== key) {
@@ -477,6 +431,7 @@ export default {
             if (a == null && b == null) return 0;
             if (a == null) return 1;
             if (b == null) return -1;
+            if (typeof a === 'boolean' || typeof b === 'boolean') return (a === true ? 1 : 0) - (b === true ? 1 : 0);
             const na = Number(a), nb = Number(b);
             if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
             return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
@@ -510,10 +465,28 @@ export default {
             return result;
         });
 
-        // ═══════════ 9. FILTERING ═══════════
+        // ═══════════ 8. FILTERING (global + per-column popover) ═══════════
 
         const globalSearch = ref('');
         const columnFilters = ref({});
+        const activeFilterCol = ref(null);
+        const filterPopoverInputRef = ref(null);
+
+        function toggleFilterPopover(col) {
+            if (activeFilterCol.value === col._uid) {
+                activeFilterCol.value = null;
+            } else {
+                activeFilterCol.value = col._uid;
+                nextTick(() => {
+                    const el = document.querySelector('.bst-col-filter-popover .bst-col-filter-input');
+                    if (el) el.focus();
+                });
+            }
+        }
+
+        function closeFilterPopover() {
+            activeFilterCol.value = null;
+        }
 
         function setColumnFilter(col, value) {
             columnFilters.value = { ...columnFilters.value, [col._filterKey]: value };
@@ -587,7 +560,7 @@ export default {
             filteredGroups.value.reduce((sum, g) => sum + g.itemCount, 0)
         );
 
-        // ═══════════ 10. PAGINATION ═══════════
+        // ═══════════ 9. PAGINATION ═══════════
 
         const currentPage = ref(1);
         const pageSize = computed(() => props.content?.pageSize || 25);
@@ -603,9 +576,7 @@ export default {
             return filteredGroups.value.slice(start, start + pageSize.value);
         });
 
-        watch([globalSearch, columnFilters], () => {
-            currentPage.value = 1;
-        }, { deep: true });
+        watch([globalSearch, columnFilters], () => { currentPage.value = 1; }, { deep: true });
 
         watch(filteredGroups, () => {
             if (currentPage.value > totalPages.value) currentPage.value = Math.max(1, totalPages.value);
@@ -615,11 +586,10 @@ export default {
             currentPage.value = Math.max(1, Math.min(page, totalPages.value));
         }
 
-        // ═══════════ 11. SELECTION ═══════════
+        // ═══════════ 10. SELECTION ═══════════
 
         const selectedIds = ref(new Set());
         const activeGroupId = ref(null);
-
         const selectedCount = computed(() => selectedIds.value.size);
 
         function isGroupSelected(group) { return selectedIds.value.has(group.headerId); }
@@ -659,9 +629,9 @@ export default {
             return visible.length > 0 && visible.every(g => selectedIds.value.has(g.headerId));
         });
 
-        const someVisibleSelected = computed(() => {
-            return paginatedGroups.value.some(g => selectedIds.value.has(g.headerId));
-        });
+        const someVisibleSelected = computed(() =>
+            paginatedGroups.value.some(g => selectedIds.value.has(g.headerId))
+        );
 
         function handleRowClick(group, item) {
             /* wwEditor:start */
@@ -709,14 +679,7 @@ export default {
 
             emit('trigger-event', {
                 name: 'selectionChange',
-                event: {
-                    value: {
-                        selectedHeaderIds: selHeaderIds,
-                        selectedHeaders: selHeaders,
-                        selectedLineItemIds: selItemIds,
-                        selectedLineItems: selItems,
-                    },
-                },
+                event: { value: { selectedHeaderIds: selHeaderIds, selectedHeaders: selHeaders, selectedLineItemIds: selItemIds, selectedLineItems: selItems } },
             });
 
             if (selectedHeaderIdsVar) selectedHeaderIdsVar.setValue(selHeaderIds);
@@ -725,54 +688,20 @@ export default {
             if (selectedLineItemObjectsVar) selectedLineItemObjectsVar.setValue(selItems);
         }
 
-        // ═══════════ 12. COMPONENT VARIABLES (outputs) ═══════════
+        // ═══════════ 11. COMPONENT VARIABLES ═══════════
 
-        const selectedHeaderIdsVar = wwLib.wwVariable.useComponentVariable({
-            uid: props.uid,
-            name: 'Selected Header IDs',
-            type: 'array',
-            defaultValue: [],
-            readonly: true,
-        });
-
-        const selectedHeaderObjectsVar = wwLib.wwVariable.useComponentVariable({
-            uid: props.uid,
-            name: 'Selected Headers',
-            type: 'array',
-            defaultValue: [],
-            readonly: true,
-        });
-
-        const selectedLineItemIdsVar = wwLib.wwVariable.useComponentVariable({
-            uid: props.uid,
-            name: 'Selected Line Item IDs',
-            type: 'array',
-            defaultValue: [],
-            readonly: true,
-        });
-
-        const selectedLineItemObjectsVar = wwLib.wwVariable.useComponentVariable({
-            uid: props.uid,
-            name: 'Selected Line Items',
-            type: 'array',
-            defaultValue: [],
-            readonly: true,
-        });
-
-        const activeHeaderVar = wwLib.wwVariable.useComponentVariable({
-            uid: props.uid,
-            name: 'Active Header',
-            type: 'object',
-            defaultValue: null,
-            readonly: true,
-        });
+        const selectedHeaderIdsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Header IDs', type: 'array', defaultValue: [], readonly: true });
+        const selectedHeaderObjectsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Headers', type: 'array', defaultValue: [], readonly: true });
+        const selectedLineItemIdsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Line Item IDs', type: 'array', defaultValue: [], readonly: true });
+        const selectedLineItemObjectsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Line Items', type: 'array', defaultValue: [], readonly: true });
+        const activeHeaderVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Active Header', type: 'object', defaultValue: null, readonly: true });
 
         watch(activeGroupId, (id) => {
             const group = groups.value.find(g => g.headerId === id);
             if (activeHeaderVar) activeHeaderVar.setValue(group ? stripInternalFields(group.header) : null);
         });
 
-        // ═══════════ 13. FORMATTING ═══════════
+        // ═══════════ 12. FORMATTING ═══════════
 
         function formatCell(value, col) {
             if (value == null || value === '') return '\u2014';
@@ -790,11 +719,11 @@ export default {
             const bg = statusColorMap.value[value];
             if (bg) return { background: bg, color: textColorForBg(bg) };
             if (value === true || value === 'true') return { background: '#fee2e2', color: '#991b1b' };
-            if (value === false || value === 'false') return {};
+            if (value === false || value === 'false') return { background: '#f3f4f6', color: '#374151' };
             return {};
         }
 
-        // ═══════════ 14. CLASSES & STYLES ═══════════
+        // ═══════════ 13. CLASSES & STYLES ═══════════
 
         const tableWrapRef = ref(null);
 
@@ -820,44 +749,22 @@ export default {
         });
 
         function thClasses(col) {
-            const c = {};
-            if (col.pinned === 'left') c['bst-pinned-left'] = true;
-            if (col.pinned === 'right') c['bst-pinned-right'] = true;
-            if (col.source === 'header') c['bst-th-header-col'] = true;
-            return c;
-        }
-
-        function thFilterClasses(col) {
-            const c = {};
-            if (col.pinned === 'left') c['bst-pinned-left'] = true;
-            if (col.pinned === 'right') c['bst-pinned-right'] = true;
-            return c;
-        }
-
-        function thStyle(col) {
-            const s = {};
-            if (col.pinned === 'left') s.left = computePinnedOffset(col, 'left') + 'px';
-            if (col.pinned === 'right') s.right = computePinnedOffset(col, 'right') + 'px';
-            return s;
+            return { 'bst-th-header-col': col.source === 'header' };
         }
 
         function headerTdClasses(col, group) {
-            const c = {};
-            if (col.pinned === 'left') c['bst-pinned-left'] = true;
-            if (col.pinned === 'right') c['bst-pinned-right'] = true;
-            if (isGroupSelected(group)) c['bst-selected'] = true;
-            if (isGroupActive(group)) c['bst-active'] = true;
-            return c;
+            return {
+                'bst-selected': isGroupSelected(group),
+                'bst-active': isGroupActive(group),
+            };
         }
 
         function lineItemTdClasses(col, group, item) {
-            const c = {};
-            if (col.pinned === 'left') c['bst-pinned-left'] = true;
-            if (col.pinned === 'right') c['bst-pinned-right'] = true;
-            if (isGroupSelected(group)) c['bst-selected'] = true;
-            if (isGroupActive(group)) c['bst-active'] = true;
-            if (item.overbooked === true || item.overbooked === 'true') c['bst-overbooked'] = true;
-            return c;
+            return {
+                'bst-selected': isGroupSelected(group),
+                'bst-active': isGroupActive(group),
+                'bst-overbooked': item.overbooked === true || item.overbooked === 'true',
+            };
         }
 
         function mergedCellClasses(group) {
@@ -865,31 +772,6 @@ export default {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
             };
-        }
-
-        function tdStyle(col) {
-            const s = {};
-            if (col.pinned === 'left') s.left = computePinnedOffset(col, 'left') + 'px';
-            if (col.pinned === 'right') s.right = computePinnedOffset(col, 'right') + 'px';
-            return s;
-        }
-
-        function computePinnedOffset(targetCol, side) {
-            let offset = 0;
-            if (selectionEnabled.value && side === 'left') offset = 48;
-            const cols = visibleColumns.value;
-            if (side === 'left') {
-                for (const c of cols) {
-                    if (c._uid === targetCol._uid) break;
-                    if (c.pinned === 'left') offset += getColWidth(c);
-                }
-            } else {
-                for (let i = cols.length - 1; i >= 0; i--) {
-                    if (cols[i]._uid === targetCol._uid) break;
-                    if (cols[i].pinned === 'right') offset += getColWidth(cols[i]);
-                }
-            }
-            return offset;
         }
 
         function rowClasses(group, item, ii, gi) {
@@ -904,7 +786,7 @@ export default {
             };
         }
 
-        // ═══════════ 15. ACTIONS (callable from workflows) ═══════════
+        // ═══════════ 14. ACTIONS ═══════════
 
         function clearSelection() {
             selectedIds.value = new Set();
@@ -928,6 +810,7 @@ export default {
         function clearFilters() {
             globalSearch.value = '';
             columnFilters.value = {};
+            activeFilterCol.value = null;
         }
 
         // ═══════════ CLEANUP ═══════════
@@ -937,65 +820,20 @@ export default {
             document.removeEventListener('mouseup', onResizeEnd);
         });
 
-        // ═══════════ RETURN ═══════════
-
         return {
-            groups,
-            filteredGroups,
-            paginatedGroups,
-            totalLineItems,
-
-            visibleColumns,
-            totalColspan,
-            densityClass,
-            getColWidth,
-            showToolbar,
-
-            sortState,
-            handleSort,
-
-            globalSearch,
-            columnFilters,
-            setColumnFilter,
-            hasActiveFilter,
-            hasAnyFilter,
-
-            currentPage,
-            totalPages,
-            paginationEnabled,
-            goToPage,
-
-            selectionEnabled,
-            selectedIds,
-            selectedCount,
-            allVisibleSelected,
-            someVisibleSelected,
-            isGroupSelected,
-            isGroupActive,
-            toggleGroupSelection,
-            toggleSelectAll,
-            handleRowClick,
-
-            startResize,
-            tableWrapRef,
-
-            formatCell,
-            badgeStyle,
-
-            rootStyles,
-            thClasses,
-            thFilterClasses,
-            thStyle,
-            headerTdClasses,
-            lineItemTdClasses,
-            mergedCellClasses,
-            tdStyle,
-            rowClasses,
-
-            clearSelection,
-            selectAll,
-            selectHeaders,
-            clearFilters,
+            groups, filteredGroups, paginatedGroups, totalLineItems,
+            visibleColumns, totalColspan, densityClass, getColWidth, showToolbar,
+            sortState, handleSort,
+            globalSearch, columnFilters, activeFilterCol, filterPopoverInputRef,
+            toggleFilterPopover, closeFilterPopover, setColumnFilter, hasActiveFilter, hasAnyFilter,
+            currentPage, totalPages, paginationEnabled, goToPage,
+            selectionEnabled, selectedIds, selectedCount,
+            allVisibleSelected, someVisibleSelected,
+            isGroupSelected, isGroupActive, toggleGroupSelection, toggleSelectAll, handleRowClick,
+            startResize, tableWrapRef,
+            formatCell, badgeStyle,
+            rootStyles, thClasses, headerTdClasses, lineItemTdClasses, mergedCellClasses, rowClasses,
+            clearSelection, selectAll, selectHeaders, clearFilters,
         };
     },
 };
@@ -1049,40 +887,19 @@ $transition: 0.15s ease;
     }
 }
 
-.bst-search-icon {
-    width: 16px;
-    height: 16px;
-    color: #9ca3af;
-    flex-shrink: 0;
-}
+.bst-search-icon { width: 16px; height: 16px; color: #9ca3af; flex-shrink: 0; }
 
 .bst-search-input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    font: inherit;
-    font-size: var(--bst-font-size);
-    color: #111827;
-
+    flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+    font: inherit; font-size: var(--bst-font-size); color: #111827;
     &::placeholder { color: #9ca3af; }
 }
 
 .bst-search-clear {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border: none;
-    background: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 0;
-    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border: none; background: none;
+    color: #9ca3af; cursor: pointer; padding: 0; border-radius: 50%;
     transition: color $transition, background $transition;
-
     svg { width: 14px; height: 14px; }
     &:hover { color: #374151; background: #f3f4f6; }
 }
@@ -1090,470 +907,222 @@ $transition: 0.15s ease;
 .bst-toolbar-spacer { flex: 1; }
 
 .bst-toolbar-stats {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: #6b7280;
-    white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #6b7280; white-space: nowrap;
 }
-
-.bst-stat {
-    font-variant-numeric: tabular-nums;
-}
-
-.bst-stat-label {
-    font-weight: 400;
-}
-
-.bst-stat-selected {
-    color: #6366f1;
-    font-weight: 600;
-}
-
-.bst-stat-sep {
-    color: #d1d5db;
-}
-
-/* ═══════════ TABLE WRAPPER ═══════════ */
-.bst-table-wrap {
-    overflow: auto;
-    position: relative;
-}
+.bst-stat { font-variant-numeric: tabular-nums; }
+.bst-stat-label { font-weight: 400; }
+.bst-stat-selected { color: #6366f1; font-weight: 600; }
+.bst-stat-sep { color: #d1d5db; }
 
 /* ═══════════ TABLE ═══════════ */
+.bst-table-wrap { overflow: auto; position: relative; }
+
 .bst-table {
-    width: 100%;
-    min-width: max-content;
-    border-collapse: separate;
-    border-spacing: 0;
-    table-layout: fixed;
+    width: 100%; min-width: max-content;
+    border-collapse: separate; border-spacing: 0; table-layout: fixed;
 }
 
-/* ── Density ── */
 .bst-density-compact .bst-td,
 .bst-density-compact .bst-th { padding: 4px 8px; }
-
 .bst-density-normal .bst-td,
 .bst-density-normal .bst-th { padding: 8px 12px; }
-
 .bst-density-comfortable .bst-td,
 .bst-density-comfortable .bst-th { padding: 12px 16px; }
 
 .bst-root[style*='--bst-cell-padding'] .bst-td,
-.bst-root[style*='--bst-cell-padding'] .bst-th {
-    padding: var(--bst-cell-padding);
-}
+.bst-root[style*='--bst-cell-padding'] .bst-th { padding: var(--bst-cell-padding); }
 
 /* ═══════════ THEAD ═══════════ */
-.bst-thead {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-}
+.bst-thead { position: sticky; top: 0; z-index: 5; }
 
 .bst-th {
-    background: var(--bst-header-bg);
-    color: var(--bst-header-text);
-    font-weight: var(--bst-header-fw);
-    text-align: left;
-    white-space: nowrap;
+    background: var(--bst-header-bg); color: var(--bst-header-text);
+    font-weight: var(--bst-header-fw); text-align: left; white-space: nowrap;
     border-bottom: 2px solid var(--bst-border);
-    user-select: none;
-    vertical-align: middle;
-    position: relative;
+    user-select: none; vertical-align: middle; position: relative;
 }
 
-.bst-th-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-}
+.bst-th-sticky { position: sticky; top: 0; z-index: 3; }
 
-.bst-th-filter-sticky {
-    position: sticky;
-    z-index: 3;
-}
+.bst-th-checkbox { width: 48px; min-width: 48px; max-width: 48px; text-align: center; }
 
-.bst-th-checkbox {
-    width: 48px;
-    min-width: 48px;
-    max-width: 48px;
-    text-align: center;
+.bst-th-inner {
+    display: flex; align-items: center; gap: 2px;
 }
 
 .bst-th-content {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.bst-sortable {
-    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    flex: 1; min-width: 0; cursor: pointer;
 
     &:hover .bst-th-label { color: #111827; }
     &:hover .bst-sort-hint { opacity: 0.7; }
 }
 
-.bst-th-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: color $transition;
+.bst-th-label { overflow: hidden; text-overflow: ellipsis; transition: color $transition; }
+
+.bst-sort-icon { display: inline-flex; flex-shrink: 0; }
+.bst-sort-active { color: #6366f1; }
+.bst-sort-hint { color: #9ca3af; opacity: 0.3; transition: opacity $transition; }
+
+/* ── Per-column filter button ── */
+.bst-col-filter-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; flex-shrink: 0;
+    border: none; background: transparent; color: #9ca3af;
+    border-radius: 4px; cursor: pointer; padding: 0;
+    opacity: 0.35;
+    transition: opacity $transition, color $transition, background $transition;
+
+    &:hover { opacity: 1; color: #6366f1; background: rgba(99, 102, 241, 0.06); }
 }
 
-.bst-sort-icon {
-    display: inline-flex;
-    flex-shrink: 0;
-}
-
-.bst-sort-active {
+.bst-col-filter-btn-active {
+    opacity: 1;
     color: #6366f1;
+    background: #eef2ff;
+
+    &:hover { background: #e0e7ff; }
 }
 
-.bst-sort-hint {
-    color: #9ca3af;
-    opacity: 0.3;
-    transition: opacity $transition;
+.bst-th:hover .bst-col-filter-btn { opacity: 0.7; }
+
+/* ── Filter popover ── */
+.bst-col-filter-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    min-width: 160px;
+    background: #fff;
+    border: 1px solid var(--bst-border);
+    border-top: none;
+    border-radius: 0 0 $radius-sm $radius-sm;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    padding: 6px;
+    z-index: 10;
+}
+
+.bst-col-filter-input-wrap {
+    position: relative; display: flex; align-items: center;
+}
+
+.bst-col-filter-input {
+    width: 100%; height: 28px;
+    border: 1px solid var(--bst-border); border-radius: 4px;
+    padding: 0 24px 0 8px;
+    font: inherit; font-size: 12px; color: #111827; background: #fff; outline: none;
+    transition: border-color $transition, box-shadow $transition;
+
+    &::placeholder { color: #9ca3af; }
+    &:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08); }
+}
+
+.bst-col-filter-input-clear {
+    position: absolute; right: 4px;
+    display: flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border: none;
+    background: #e0e7ff; color: #6366f1; border-radius: 50%;
+    cursor: pointer; padding: 0;
+    transition: background $transition;
+    &:hover { background: #c7d2fe; }
 }
 
 /* ── Resize handle ── */
 .bst-resize-handle {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: col-resize;
-    z-index: 4;
+    position: absolute; top: 0; right: 0; bottom: 0; width: 6px;
+    cursor: col-resize; z-index: 4;
 
     &::after {
-        content: '';
-        position: absolute;
-        right: 0;
-        top: 25%;
-        bottom: 25%;
-        width: 2px;
-        background: transparent;
-        border-radius: 1px;
+        content: ''; position: absolute; right: 0; top: 25%; bottom: 25%;
+        width: 2px; background: transparent; border-radius: 1px;
         transition: background $transition;
     }
-
-    &:hover::after {
-        background: #6366f1;
-    }
-}
-
-/* ── Filter row ── */
-.bst-filter-row .bst-th {
-    border-bottom: 1px solid var(--bst-border);
-    border-top: none;
-    font-weight: 400;
-    background: var(--bst-header-bg);
-}
-
-.bst-filter-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.bst-filter-input {
-    width: 100%;
-    height: 26px;
-    border: 1px solid var(--bst-border);
-    border-radius: 4px;
-    padding: 0 6px;
-    font: inherit;
-    font-size: 12px;
-    color: #111827;
-    background: #fff;
-    outline: none;
-    transition: border-color $transition, box-shadow $transition;
-
-    &::placeholder { color: #9ca3af; }
-    &:focus {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08);
-    }
-}
-
-.bst-filter-active .bst-filter-input {
-    border-color: #6366f1;
-    padding-right: 22px;
-}
-
-.bst-filter-clear {
-    position: absolute;
-    right: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border: none;
-    background: #e0e7ff;
-    color: #6366f1;
-    border-radius: 50%;
-    cursor: pointer;
-    padding: 0;
-    transition: background $transition;
-
-    &:hover { background: #c7d2fe; }
+    &:hover::after { background: #6366f1; }
 }
 
 /* ═══════════ TBODY ═══════════ */
 .bst-row {
-    transition: background $transition;
-    background: var(--bst-row-bg);
-
-    &:hover {
-        background: var(--bst-row-hover);
-        cursor: pointer;
-    }
+    transition: background $transition; background: var(--bst-row-bg);
+    &:hover { background: var(--bst-row-hover); cursor: pointer; }
 }
-
 .bst-group-alt {
     background: var(--bst-row-alt-bg);
-
     &:hover { background: var(--bst-row-hover); }
 }
-
-.bst-row-selected {
-    background: var(--bst-selected-bg) !important;
-}
-
-.bst-row-active:not(.bst-row-selected) {
-    background: var(--bst-active-bg) !important;
-}
-
-.bst-row-overbooked {
-    background: var(--bst-overbooked-bg) !important;
-}
+.bst-row-selected { background: var(--bst-selected-bg) !important; }
+.bst-row-active:not(.bst-row-selected) { background: var(--bst-active-bg) !important; }
+.bst-row-overbooked { background: var(--bst-overbooked-bg) !important; }
 
 /* ═══════════ TD ═══════════ */
 .bst-td {
-    vertical-align: middle;
-    border-bottom: 1px solid var(--bst-border);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 0;
+    vertical-align: middle; border-bottom: 1px solid var(--bst-border);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0;
 }
-
 .bst-td-checkbox {
-    width: 48px;
-    min-width: 48px;
-    max-width: 48px;
-    text-align: center;
-    vertical-align: middle;
-    border-bottom: 1px solid var(--bst-border);
+    width: 48px; min-width: 48px; max-width: 48px;
+    text-align: center; vertical-align: middle; border-bottom: 1px solid var(--bst-border);
 }
-
 .bst-td-header {
-    background: inherit;
-    font-weight: 500;
-    vertical-align: middle;
+    background: inherit; font-weight: 500; vertical-align: middle;
     border-right: 1px solid var(--bst-border);
 }
+.bst-td-lineitem { background: inherit; }
 
-.bst-td-lineitem {
-    background: inherit;
-}
+.bst-group-first .bst-td { border-top: 2px solid var(--bst-sep); }
+tbody tr:first-child.bst-group-first .bst-td { border-top: none; }
 
-/* Group first row: top separator */
-.bst-group-first .bst-td {
-    border-top: 2px solid var(--bst-sep);
-}
-
-/* Very first visible group: no top border since thead is above */
-tbody tr:first-child.bst-group-first .bst-td {
-    border-top: none;
-}
-
-/* ── Pinned columns ── */
-.bst-pinned-left {
-    position: sticky;
-    z-index: 1;
-    background: inherit;
-}
-
-.bst-pinned-right {
-    position: sticky;
-    z-index: 1;
-    background: inherit;
-}
-
-thead .bst-pinned-left,
-thead .bst-pinned-right {
-    z-index: 6;
-}
-
-.bst-pinned-left::after,
-.bst-pinned-right::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    pointer-events: none;
-}
-
-.bst-pinned-left::after {
-    right: -6px;
-    background: linear-gradient(to right, rgba(0,0,0,0.04), transparent);
-}
-
-.bst-pinned-right::before {
-    left: -6px;
-    background: linear-gradient(to left, rgba(0,0,0,0.04), transparent);
-}
-
-/* ═══════════ CELL CONTENT ═══════════ */
+/* ═══════════ CELLS ═══════════ */
 .bst-cell-text {
-    display: inline-block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
+    display: inline-block; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; max-width: 100%;
 }
-
-.bst-cell-img {
-    width: 36px;
-    height: 36px;
-    border-radius: 4px;
-    object-fit: cover;
-    vertical-align: middle;
-}
-
+.bst-cell-img { width: 36px; height: 36px; border-radius: 4px; object-fit: cover; vertical-align: middle; }
 .bst-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.5;
-    white-space: nowrap;
-    background: #f3f4f6;
-    color: #374151;
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 600; line-height: 1.5; white-space: nowrap;
+    background: #f3f4f6; color: #374151;
 }
+.bst-checkbox { width: 16px; height: 16px; accent-color: #6366f1; cursor: pointer; }
 
-/* ═══════════ CHECKBOX ═══════════ */
-.bst-checkbox {
-    width: 16px;
-    height: 16px;
-    accent-color: #6366f1;
-    cursor: pointer;
-}
-
-/* ═══════════ EMPTY STATE ═══════════ */
-.bst-empty-row td {
-    border: none;
-}
-
-.bst-empty-cell {
-    padding: 48px 16px !important;
-    text-align: center;
-}
-
-.bst-empty-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    color: #9ca3af;
-}
-
-.bst-empty-icon {
-    width: 40px;
-    height: 40px;
-    opacity: 0.5;
-}
-
-.bst-empty-text {
-    font-size: 13px;
-}
-
+/* ═══════════ EMPTY ═══════════ */
+.bst-empty-row td { border: none; }
+.bst-empty-cell { padding: 48px 16px !important; text-align: center; }
+.bst-empty-content { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #9ca3af; }
+.bst-empty-icon { width: 40px; height: 40px; opacity: 0.5; }
+.bst-empty-text { font-size: 13px; }
 .bst-empty-clear-btn {
-    margin-top: 4px;
-    padding: 6px 14px;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    color: #6366f1;
-    background: #eef2ff;
-    border: 1px solid #c7d2fe;
-    border-radius: $radius-sm;
-    cursor: pointer;
-    transition: all $transition;
-
-    &:hover {
-        background: #e0e7ff;
-        border-color: #a5b4fc;
-    }
+    margin-top: 4px; padding: 6px 14px; font: inherit;
+    font-size: 12px; font-weight: 600; color: #6366f1;
+    background: #eef2ff; border: 1px solid #c7d2fe; border-radius: $radius-sm;
+    cursor: pointer; transition: all $transition;
+    &:hover { background: #e0e7ff; border-color: #a5b4fc; }
 }
 
 /* ═══════════ PAGINATION ═══════════ */
 .bst-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border-top: 1px solid var(--bst-border);
-    background: #fff;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-top: 1px solid var(--bst-border); background: #fff;
 }
-
 .bst-page-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border: 1px solid var(--bst-border);
-    border-radius: $radius-sm;
-    background: #fff;
-    color: #374151;
-    cursor: pointer;
-    transition: all $transition;
-
-    &:hover:not(:disabled) {
-        background: #f3f4f6;
-        border-color: #9ca3af;
-    }
-
-    &:disabled {
-        opacity: 0.35;
-        cursor: not-allowed;
-    }
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border: 1px solid var(--bst-border);
+    border-radius: $radius-sm; background: #fff; color: #374151;
+    cursor: pointer; transition: all $transition;
+    &:hover:not(:disabled) { background: #f3f4f6; border-color: #9ca3af; }
+    &:disabled { opacity: 0.35; cursor: not-allowed; }
 }
-
 .bst-page-label {
-    font-size: 12px;
-    color: #6b7280;
-    padding: 0 8px;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
+    font-size: 12px; color: #6b7280; padding: 0 8px;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 
 /* ═══════════ RESPONSIVE ═══════════ */
 @media (max-width: 640px) {
-    .bst-toolbar {
-        padding: 8px 10px;
-        gap: 8px;
-    }
-
-    .bst-search-wrap {
-        max-width: 100%;
-    }
-
-    .bst-pagination {
-        padding: 8px 10px;
-    }
+    .bst-toolbar { padding: 8px 10px; gap: 8px; }
+    .bst-search-wrap { max-width: 100%; }
+    .bst-pagination { padding: 8px 10px; }
 }
 
-/* ═══════════ ROW EMPTY PLACEHOLDER ═══════════ */
-.bst-row-empty .bst-td-lineitem {
-    color: #9ca3af;
-    font-style: italic;
-}
+.bst-row-empty .bst-td-lineitem { color: #9ca3af; font-style: italic; }
 </style>

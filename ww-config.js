@@ -6,28 +6,22 @@ export default {
             {
                 label: 'Data Sources',
                 isCollapsible: true,
-                properties: ['headerData', 'lineItemData', 'referenceData'],
+                properties: ['headerData', 'lineItemData'],
             },
             {
                 label: 'Relationship Mapping',
                 isCollapsible: true,
-                properties: [
-                    'headerKeyField',
-                    'lineItemForeignKey',
-                    'referenceKeyField',
-                    'lineItemRefJoinField',
-                    'caseInsensitiveJoin',
-                ],
+                properties: ['headerKeyField', 'lineItemForeignKey'],
             },
             {
-                label: 'Columns',
+                label: 'Table Columns',
                 isCollapsible: true,
                 properties: ['columns'],
             },
             {
                 label: 'Display',
                 isCollapsible: true,
-                properties: ['showFilterRow', 'showGlobalSearch', 'tableMaxHeight'],
+                properties: ['showGlobalSearch', 'tableMaxHeight'],
             },
             {
                 label: 'Pagination',
@@ -77,12 +71,7 @@ export default {
         {
             name: 'rowClick',
             label: { en: 'On Row Click' },
-            event: {
-                value: {
-                    header: { id: null, bookingnumber: null, bookingtitle: null, created_at: null },
-                    lineItem: { id: null, sku: null, quantity: null, status: null },
-                },
-            },
+            event: { value: { header: {}, lineItem: {} } },
             default: true,
         },
         {
@@ -101,12 +90,7 @@ export default {
         {
             name: 'activeHeaderChange',
             label: { en: 'On Active Header Change' },
-            event: {
-                value: {
-                    header: null,
-                    lineItems: [],
-                },
-            },
+            event: { value: { header: null, lineItems: [] } },
             default: false,
         },
         {
@@ -132,7 +116,6 @@ export default {
         { action: 'clearFilters', label: { en: 'Clear all filters' } },
     ],
     properties: {
-        /* ── Data Sources ── */
         headerData: {
             label: { en: 'Header Data' },
             type: 'ObjectList',
@@ -142,7 +125,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of header objects (e.g. bookings). Must contain a unique key field.',
+                tooltip: 'Array of header/parent objects. Must contain a unique key field (e.g. id).',
             },
             /* wwEditor:end */
         },
@@ -155,100 +138,44 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of line item objects. Must contain a foreign key linking to Header Data.',
-            },
-            /* wwEditor:end */
-        },
-        referenceData: {
-            label: { en: 'Reference Data (optional)' },
-            type: 'ObjectList',
-            section: 'settings',
-            bindable: true,
-            defaultValue: [],
-            /* wwEditor:start */
-            bindingValidation: {
-                type: 'array',
-                tooltip: 'Optional reference array (e.g. inventory) to enrich line items with image, model, color, etc.',
+                tooltip: 'Array of child/line item objects. Must contain a foreign key linking to Header Data.',
             },
             /* wwEditor:end */
         },
 
-        /* ── Relationship Mapping ── */
         headerKeyField: {
-            label: { en: 'Header key field' },
+            label: { en: 'Header, ID Key' },
             type: 'Text',
             section: 'settings',
             defaultValue: 'id',
             options: { placeholder: 'id' },
             /* wwEditor:start */
-            propertyHelp: { tooltip: 'Primary key field in Header Data (default: id)' },
+            propertyHelp: { tooltip: 'The unique identifier field in your Header Data (e.g. id, booking_id).' },
             /* wwEditor:end */
         },
         lineItemForeignKey: {
-            label: { en: 'Line item foreign key' },
+            label: { en: 'Line Item, Header ID Key' },
             type: 'Text',
             section: 'settings',
             defaultValue: 'headerid',
             options: { placeholder: 'headerid' },
             /* wwEditor:start */
-            propertyHelp: { tooltip: 'Foreign key in Line Items Data referencing the header (default: headerid)' },
-            /* wwEditor:end */
-        },
-        referenceKeyField: {
-            label: { en: 'Reference key field' },
-            type: 'Text',
-            section: 'settings',
-            defaultValue: 'sku',
-            options: { placeholder: 'sku or SKU' },
-            /* wwEditor:start */
-            propertyHelp: { tooltip: 'Key field in Reference Data to match line items (default: sku). Case-insensitive lookup supported.' },
-            /* wwEditor:end */
-        },
-        lineItemRefJoinField: {
-            label: { en: 'Line item join field (to reference)' },
-            type: 'Text',
-            section: 'settings',
-            defaultValue: 'sku',
-            options: { placeholder: 'sku' },
-            /* wwEditor:start */
-            propertyHelp: { tooltip: 'Field in Line Items Data used to join with Reference Data (default: sku)' },
-            /* wwEditor:end */
-        },
-        caseInsensitiveJoin: {
-            label: { en: 'Case-insensitive reference join' },
-            type: 'OnOff',
-            section: 'settings',
-            defaultValue: true,
-            /* wwEditor:start */
-            propertyHelp: { tooltip: 'Match reference keys case-insensitively (handles SKU vs sku)' },
+            propertyHelp: { tooltip: 'The field in Line Items Data that references the Header ID (e.g. headerid, booking_id).' },
             /* wwEditor:end */
         },
 
-        /* ── Columns ── */
         columns: {
             label: { en: 'Table Columns' },
             type: 'Array',
             section: 'settings',
             bindable: true,
-            defaultValue: [
-                { source: 'header', field: 'bookingnumber', label: 'Booking #', width: 130, sortable: true, filterable: true, visible: true, pinned: 'none', formatter: 'text' },
-                { source: 'header', field: 'bookingtitle', label: 'Title', width: 200, sortable: true, filterable: true, visible: true, pinned: 'none', formatter: 'text' },
-                { source: 'header', field: 'created_at', label: 'Created', width: 150, sortable: true, filterable: true, visible: true, pinned: 'none', formatter: 'date' },
-                { source: 'lineitem', field: 'sku', label: 'SKU', width: 140, sortable: true, filterable: true, visible: true, pinned: 'none', formatter: 'text' },
-                { source: 'lineitem', field: 'quantity', label: 'Qty', width: 70, sortable: true, filterable: true, visible: true, pinned: 'none', formatter: 'number' },
-                { source: 'lineitem', field: 'status', label: 'Status', width: 100, sortable: true, filterable: true, visible: true, pinned: 'none', formatter: 'badge' },
-                { source: 'lineitem', field: 'balanceref', label: 'Balance Ref', width: 100, sortable: true, filterable: true, visible: true, pinned: 'none', formatter: 'text' },
-                { source: 'lineitem', field: 'overbooked', label: 'Overbooked', width: 100, sortable: false, filterable: false, visible: true, pinned: 'none', formatter: 'badge' },
-                { source: 'lineitem', field: 'ref_imagelink', label: 'Image', width: 80, sortable: false, filterable: false, visible: false, pinned: 'none', formatter: 'image' },
-                { source: 'lineitem', field: 'ref_model', label: 'Model', width: 120, sortable: true, filterable: true, visible: false, pinned: 'none', formatter: 'text' },
-                { source: 'lineitem', field: 'ref_color', label: 'Color', width: 90, sortable: true, filterable: true, visible: false, pinned: 'none', formatter: 'text' },
-                { source: 'lineitem', field: 'ref_size', label: 'Size', width: 70, sortable: true, filterable: true, visible: false, pinned: 'none', formatter: 'text' },
-            ],
+            defaultValue: [],
             options: {
                 expandable: true,
                 getItemLabel(item, index) {
                     const src = item?.source === 'lineitem' ? 'Line' : 'Hdr';
-                    return `${item?.label || item?.field || 'Column ' + (index + 1)} [${src}]`;
+                    const display = item?.title?.trim() || item?.field || 'Column ' + (index + 1);
+                    return `${display} [${src}]`;
                 },
                 item: {
                     source: {
@@ -263,16 +190,16 @@ export default {
                         },
                     },
                     field: {
-                        label: { en: 'Field' },
+                        label: { en: 'Field Key' },
                         type: 'Text',
                         defaultValue: '',
                         options: { placeholder: 'e.g. bookingnumber' },
                     },
-                    label: {
-                        label: { en: 'Label' },
+                    title: {
+                        label: { en: 'Title Override' },
                         type: 'Text',
                         defaultValue: '',
-                        options: { placeholder: 'e.g. Booking #' },
+                        options: { placeholder: 'Leave empty to use field key' },
                     },
                     width: {
                         label: { en: 'Width (px)' },
@@ -280,35 +207,8 @@ export default {
                         defaultValue: 150,
                         options: { min: 40, max: 800, step: 10 },
                     },
-                    sortable: {
-                        label: { en: 'Sortable' },
-                        type: 'OnOff',
-                        defaultValue: true,
-                    },
-                    filterable: {
-                        label: { en: 'Filterable' },
-                        type: 'OnOff',
-                        defaultValue: true,
-                    },
-                    visible: {
-                        label: { en: 'Visible' },
-                        type: 'OnOff',
-                        defaultValue: true,
-                    },
-                    pinned: {
-                        label: { en: 'Pinned' },
-                        type: 'TextSelect',
-                        defaultValue: 'none',
-                        options: {
-                            options: [
-                                { value: 'none', label: 'None' },
-                                { value: 'left', label: 'Left' },
-                                { value: 'right', label: 'Right' },
-                            ],
-                        },
-                    },
                     formatter: {
-                        label: { en: 'Format' },
+                        label: { en: 'Display Format' },
                         type: 'TextSelect',
                         defaultValue: 'text',
                         options: {
@@ -322,24 +222,21 @@ export default {
                             ],
                         },
                     },
+                    visible: {
+                        label: { en: 'Visible' },
+                        type: 'OnOff',
+                        defaultValue: true,
+                    },
                 },
             },
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of column configs: { source, field, label, width, sortable, filterable, visible, pinned, formatter }',
+                tooltip: 'Array of column configs: { source, field, title?, width?, formatter?, visible? }',
             },
             /* wwEditor:end */
         },
 
-        /* ── Display ── */
-        showFilterRow: {
-            label: { en: 'Show filter row' },
-            type: 'OnOff',
-            section: 'settings',
-            defaultValue: true,
-            responsive: true,
-        },
         showGlobalSearch: {
             label: { en: 'Show global search' },
             type: 'OnOff',
@@ -358,7 +255,6 @@ export default {
             /* wwEditor:end */
         },
 
-        /* ── Pagination ── */
         paginationEnabled: {
             label: { en: 'Enable pagination' },
             type: 'OnOff',
@@ -374,7 +270,6 @@ export default {
             hidden: (content) => !content.paginationEnabled,
         },
 
-        /* ── Selection ── */
         selectionEnabled: {
             label: { en: 'Enable selection' },
             type: 'OnOff',
@@ -389,63 +284,16 @@ export default {
             hidden: (content) => !content.selectionEnabled,
         },
 
-        /* ── Style: Colors ── */
-        headerBgColor: {
-            label: { en: 'Header background' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#f8f9fa',
-        },
-        headerTextColor: {
-            label: { en: 'Header text' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#374151',
-        },
-        rowBgColor: {
-            label: { en: 'Row background' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#ffffff',
-        },
-        rowAltBgColor: {
-            label: { en: 'Alternate group background' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#fafbfc',
-        },
-        rowHoverColor: {
-            label: { en: 'Row hover' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#f0f4ff',
-        },
-        selectedRowColor: {
-            label: { en: 'Selected row' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#e0e7ff',
-        },
-        activeRowColor: {
-            label: { en: 'Active row' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#ede9fe',
-        },
-        borderColor: {
-            label: { en: 'Border color' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#e5e7eb',
-        },
-        groupSeparatorColor: {
-            label: { en: 'Group separator' },
-            type: 'Color',
-            section: 'style',
-            defaultValue: '#d1d5db',
-        },
+        headerBgColor: { label: { en: 'Header background' }, type: 'Color', section: 'style', defaultValue: '#f8f9fa' },
+        headerTextColor: { label: { en: 'Header text' }, type: 'Color', section: 'style', defaultValue: '#374151' },
+        rowBgColor: { label: { en: 'Row background' }, type: 'Color', section: 'style', defaultValue: '#ffffff' },
+        rowAltBgColor: { label: { en: 'Alternate group background' }, type: 'Color', section: 'style', defaultValue: '#fafbfc' },
+        rowHoverColor: { label: { en: 'Row hover' }, type: 'Color', section: 'style', defaultValue: '#f0f4ff' },
+        selectedRowColor: { label: { en: 'Selected row' }, type: 'Color', section: 'style', defaultValue: '#e0e7ff' },
+        activeRowColor: { label: { en: 'Active row' }, type: 'Color', section: 'style', defaultValue: '#ede9fe' },
+        borderColor: { label: { en: 'Border color' }, type: 'Color', section: 'style', defaultValue: '#e5e7eb' },
+        groupSeparatorColor: { label: { en: 'Group separator' }, type: 'Color', section: 'style', defaultValue: '#d1d5db' },
 
-        /* ── Style: Typography ── */
         fontFamily: {
             label: { en: 'Font family' },
             type: 'FontFamily',
@@ -475,7 +323,6 @@ export default {
             },
         },
 
-        /* ── Style: Density ── */
         rowDensity: {
             label: { en: 'Row density' },
             type: 'TextSelect',
@@ -500,7 +347,6 @@ export default {
             /* wwEditor:end */
         },
 
-        /* ── Style: Conditional ── */
         overbookedHighlight: {
             label: { en: 'Overbooked highlight color' },
             type: 'Color',
@@ -511,21 +357,16 @@ export default {
             /* wwEditor:end */
         },
         statusColorMap: {
-            label: { en: 'Status → color map (JSON)' },
+            label: { en: 'Status color map (JSON)' },
             type: 'RawObject',
             section: 'style',
             bindable: true,
-            defaultValue: {
-                Booked: '#dbeafe',
-                Confirmed: '#d1fae5',
-                Pending: '#fef3c7',
-                Cancelled: '#fee2e2',
-            },
+            defaultValue: {},
             options: { placeholder: '{ "Booked": "#dbeafe", "Confirmed": "#d1fae5" }' },
             /* wwEditor:start */
             bindingValidation: {
                 type: 'object',
-                tooltip: 'Map of status value → CSS background color',
+                tooltip: 'Map of value to CSS background color (e.g. status name to color)',
             },
             /* wwEditor:end */
         },
