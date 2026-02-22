@@ -230,6 +230,27 @@ export default {
                                 type: 'OnOff',
                                 defaultValue: true,
                             },
+                            displayValueFormula: {
+                                label: { en: 'Display value override' },
+                                type: 'Formula',
+                                /* wwEditor:start */
+                                propertyHelp: { tooltip: 'Optional formula to override the cell display. Context is the current row (header or line item). Use context fields or mapping to compute the displayed value.' },
+                                /* wwEditor:end */
+                                options: (content) => {
+                                    try {
+                                        const headers = typeof wwLib !== 'undefined' && wwLib?.wwUtils?.getDataFromCollection
+                                            ? (wwLib.wwUtils.getDataFromCollection(content?.headerData) ?? [])
+                                            : [];
+                                        const lines = typeof wwLib !== 'undefined' && wwLib?.wwUtils?.getDataFromCollection
+                                            ? (wwLib.wwUtils.getDataFromCollection(content?.lineItemData) ?? [])
+                                            : [];
+                                        const first = (Array.isArray(headers) && headers[0]) || (Array.isArray(lines) && lines[0]) || {};
+                                        return { template: first };
+                                    } catch (_) {
+                                        return { template: {} };
+                                    }
+                                },
+                            },
                         },
                     },
                 },
@@ -237,7 +258,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of column configs: { source, field, title?, width?, formatter?, visible? }',
+                tooltip: 'Array of column configs: { source, field, title?, width?, formatter?, visible?, displayValueFormula? }',
             },
             /* wwEditor:end */
         },

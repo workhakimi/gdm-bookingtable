@@ -149,7 +149,7 @@
                                     class="bst-td bst-td-header"
                                     :class="headerTdClasses(col, group)"
                                 >
-                                    <span class="bst-cell-text">{{ formatCell(group.header[col.field], col) }}</span>
+                                    <span class="bst-cell-text">{{ getDisplayOverride(col, group.header) ?? formatCell(group.header[col.field], col) }}</span>
                                 </td>
 
                                 <td
@@ -157,20 +157,25 @@
                                     class="bst-td bst-td-lineitem"
                                     :class="lineItemTdClasses(col, group, item)"
                                 >
-                                    <img
-                                        v-if="col.formatter === 'image' && item[col.field]"
-                                        :src="item[col.field]"
-                                        class="bst-cell-img"
-                                        loading="lazy"
-                                    />
-                                    <span
-                                        v-else-if="col.formatter === 'badge'"
-                                        class="bst-badge"
-                                        :style="badgeStyle(item[col.field])"
-                                    >
-                                        {{ formatCell(item[col.field], col) }}
-                                    </span>
-                                    <span v-else class="bst-cell-text">{{ formatCell(item[col.field], col) }}</span>
+                                    <template v-if="getLineCellDisplay(col, group, item) !== null">
+                                        <span class="bst-cell-text">{{ getLineCellDisplay(col, group, item) }}</span>
+                                    </template>
+                                    <template v-else>
+                                        <img
+                                            v-if="col.formatter === 'image' && item[col.field]"
+                                            :src="item[col.field]"
+                                            class="bst-cell-img"
+                                            loading="lazy"
+                                        />
+                                        <span
+                                            v-else-if="col.formatter === 'badge'"
+                                            class="bst-badge"
+                                            :style="badgeStyle(item[col.field])"
+                                        >
+                                            {{ formatCell(item[col.field], col) }}
+                                        </span>
+                                        <span v-else class="bst-cell-text">{{ formatCell(item[col.field], col) }}</span>
+                                    </template>
                                 </td>
                             </template>
                         </tr>
@@ -276,6 +281,8 @@ export default {
     },
     emits: ['trigger-event'],
     setup(props, { emit }) {
+
+        const { resolveMappingFormula } = wwLib.wwFormula.useFormula();
 
         // ═══════════ 1. RESOLVE COLLECTIONS ═══════════
 
@@ -713,6 +720,25 @@ export default {
             }
         }
 
+        /** When column has displayValueFormula, resolve it with context (header or line item); otherwise return undefined. */
+        function getDisplayOverride(col, context) {
+            const formula = col?.displayValueFormula;
+            if (!formula || (typeof formula === 'object' && formula?.type === 'f' && !formula?.code)) return undefined;
+            try {
+                const v = resolveMappingFormula(formula, context);
+                return v === undefined || v === null ? undefined : v;
+            } catch (_) {
+                return undefined;
+            }
+        }
+
+        /** For line cells: override if set, otherwise null (template shows default content). */
+        function getLineCellDisplay(col, group, item) {
+            const ctx = { ...item, header: group.header };
+            const override = getDisplayOverride(col, ctx);
+            return override !== undefined ? override : null;
+        }
+
         const statusColorMap = computed(() => props.content?.statusColorMap || {});
 
         function badgeStyle(value) {
@@ -831,7 +857,7 @@ export default {
             allVisibleSelected, someVisibleSelected,
             isGroupSelected, isGroupActive, toggleGroupSelection, toggleSelectAll, handleRowClick,
             startResize, tableWrapRef,
-            formatCell, badgeStyle,
+            formatCell, getDisplayOverride, getLineCellDisplay, badgeStyle,
             rootStyles, thClasses, headerTdClasses, lineItemTdClasses, mergedCellClasses, rowClasses,
             clearSelection, selectAll, selectHeaders, clearFilters,
         };
