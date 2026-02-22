@@ -178,54 +178,59 @@ export default {
                     return `${display} [${src}]`;
                 },
                 item: {
-                    source: {
-                        label: { en: 'Source' },
-                        type: 'TextSelect',
-                        defaultValue: 'header',
-                        options: {
-                            options: [
-                                { value: 'header', label: 'Header' },
-                                { value: 'lineitem', label: 'Line Item' },
-                            ],
+                    type: 'Object',
+                    options: {
+                        item: {
+                            source: {
+                                label: { en: 'Source' },
+                                type: 'TextSelect',
+                                defaultValue: 'header',
+                                options: {
+                                    options: [
+                                        { value: 'header', label: 'Header' },
+                                        { value: 'lineitem', label: 'Line Item' },
+                                    ],
+                                },
+                            },
+                            field: {
+                                label: { en: 'Field Key' },
+                                type: 'Text',
+                                defaultValue: '',
+                                options: { placeholder: 'e.g. bookingnumber' },
+                            },
+                            title: {
+                                label: { en: 'Title Override' },
+                                type: 'Text',
+                                defaultValue: '',
+                                options: { placeholder: 'Leave empty to use field key' },
+                            },
+                            width: {
+                                label: { en: 'Width (px)' },
+                                type: 'Number',
+                                defaultValue: 150,
+                                options: { min: 40, max: 800, step: 10 },
+                            },
+                            formatter: {
+                                label: { en: 'Display Format' },
+                                type: 'TextSelect',
+                                defaultValue: 'text',
+                                options: {
+                                    options: [
+                                        { value: 'text', label: 'Text' },
+                                        { value: 'number', label: 'Number' },
+                                        { value: 'date', label: 'Date' },
+                                        { value: 'badge', label: 'Badge' },
+                                        { value: 'image', label: 'Image' },
+                                        { value: 'boolean', label: 'Boolean' },
+                                    ],
+                                },
+                            },
+                            visible: {
+                                label: { en: 'Visible' },
+                                type: 'OnOff',
+                                defaultValue: true,
+                            },
                         },
-                    },
-                    field: {
-                        label: { en: 'Field Key' },
-                        type: 'Text',
-                        defaultValue: '',
-                        options: { placeholder: 'e.g. bookingnumber' },
-                    },
-                    title: {
-                        label: { en: 'Title Override' },
-                        type: 'Text',
-                        defaultValue: '',
-                        options: { placeholder: 'Leave empty to use field key' },
-                    },
-                    width: {
-                        label: { en: 'Width (px)' },
-                        type: 'Number',
-                        defaultValue: 150,
-                        options: { min: 40, max: 800, step: 10 },
-                    },
-                    formatter: {
-                        label: { en: 'Display Format' },
-                        type: 'TextSelect',
-                        defaultValue: 'text',
-                        options: {
-                            options: [
-                                { value: 'text', label: 'Text' },
-                                { value: 'number', label: 'Number' },
-                                { value: 'date', label: 'Date' },
-                                { value: 'badge', label: 'Badge' },
-                                { value: 'image', label: 'Image' },
-                                { value: 'boolean', label: 'Boolean' },
-                            ],
-                        },
-                    },
-                    visible: {
-                        label: { en: 'Visible' },
-                        type: 'OnOff',
-                        defaultValue: true,
                     },
                 },
             },
