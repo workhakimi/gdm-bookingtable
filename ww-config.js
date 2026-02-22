@@ -101,6 +101,22 @@ export default {
         },
     ],
     actions: [
+        { action: 'addColumn', label: { en: 'Add column' } },
+        {
+            action: 'removeColumn',
+            label: { en: 'Remove column' },
+            args: [{ name: 'index', type: 'number', label: { en: 'Column index' } }],
+        },
+        {
+            action: 'moveColumnUp',
+            label: { en: 'Move column up' },
+            args: [{ name: 'index', type: 'number', label: { en: 'Column index' } }],
+        },
+        {
+            action: 'moveColumnDown',
+            label: { en: 'Move column down' },
+            args: [{ name: 'index', type: 'number', label: { en: 'Column index' } }],
+        },
         { action: 'clearSelection', label: { en: 'Clear selection' } },
         { action: 'selectAll', label: { en: 'Select all' } },
         {
@@ -177,6 +193,11 @@ export default {
                     const display = item?.title?.trim() || item?.field || 'Column ' + (index + 1);
                     return `${display} [${src}]`;
                 },
+                add: 'addColumn',
+                remove: 'removeColumn',
+                movable: true,
+                moveUp: 'moveColumnUp',
+                moveDown: 'moveColumnDown',
                 item: {
                     type: 'Object',
                     options: {
