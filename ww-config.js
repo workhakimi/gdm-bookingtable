@@ -226,7 +226,7 @@ export default {
 
         /* ── Columns ── */
         columns: {
-            label: { en: 'Columns' },
+            label: { en: 'Table Columns' },
             type: 'Array',
             section: 'settings',
             bindable: true,

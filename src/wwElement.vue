@@ -1,7 +1,7 @@
 <template>
     <div class="bst-root" :style="rootStyles">
         <!-- Toolbar -->
-        <div v-if="content.showGlobalSearch || paginationEnabled" class="bst-toolbar">
+        <div v-if="showToolbar" class="bst-toolbar">
             <div v-if="content.showGlobalSearch" class="bst-search-wrap">
                 <svg class="bst-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -19,14 +19,20 @@
                 </button>
             </div>
             <div class="bst-toolbar-spacer"></div>
-            <div v-if="paginationEnabled" class="bst-page-info">
-                {{ filteredGroups.length }} groups · {{ totalLineItems }} items
+            <div class="bst-toolbar-stats">
+                <span class="bst-stat">{{ filteredGroups.length }} <span class="bst-stat-label">groups</span></span>
+                <span class="bst-stat-sep">·</span>
+                <span class="bst-stat">{{ totalLineItems }} <span class="bst-stat-label">items</span></span>
+                <template v-if="selectedCount > 0">
+                    <span class="bst-stat-sep">·</span>
+                    <span class="bst-stat bst-stat-selected">{{ selectedCount }} <span class="bst-stat-label">selected</span></span>
+                </template>
             </div>
         </div>
 
         <!-- Table scroll wrapper -->
         <div class="bst-table-wrap" ref="tableWrapRef" :style="{ maxHeight: content.tableMaxHeight || '600px' }">
-            <table class="bst-table" :class="'bst-density-' + (content.rowDensity || 'normal')">
+            <table class="bst-table" :class="densityClass">
                 <colgroup>
                     <col v-if="selectionEnabled" class="bst-col-checkbox" />
                     <col
@@ -37,21 +43,22 @@
                 </colgroup>
 
                 <!-- Table head -->
-                <thead>
+                <thead class="bst-thead">
                     <tr class="bst-head-row">
-                        <th v-if="selectionEnabled" class="bst-th bst-th-checkbox">
+                        <th v-if="selectionEnabled" class="bst-th bst-th-checkbox bst-th-sticky">
                             <input
                                 type="checkbox"
                                 class="bst-checkbox"
                                 :checked="allVisibleSelected"
                                 :indeterminate.prop="someVisibleSelected && !allVisibleSelected"
                                 @change="toggleSelectAll"
+                                title="Select all visible groups"
                             />
                         </th>
                         <th
                             v-for="col in visibleColumns"
                             :key="'th-' + col._uid"
-                            class="bst-th"
+                            class="bst-th bst-th-sticky"
                             :class="thClasses(col)"
                             :style="thStyle(col)"
                         >
@@ -61,9 +68,12 @@
                                 @click="col.sortable ? handleSort(col) : null"
                             >
                                 <span class="bst-th-label">{{ col.label || col.field }}</span>
-                                <span v-if="sortState.field === col._sortKey" class="bst-sort-icon">
+                                <span v-if="sortState.field === col._sortKey" class="bst-sort-icon bst-sort-active">
                                     <svg v-if="sortState.direction === 'asc'" viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 3l5 6H3z"/></svg>
                                     <svg v-else viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 13l5-6H3z"/></svg>
+                                </span>
+                                <span v-else-if="col.sortable" class="bst-sort-icon bst-sort-hint">
+                                    <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M8 4l3 3.5H5z"/><path d="M8 12l3-3.5H5z"/></svg>
                                 </span>
                             </div>
                             <div
@@ -75,22 +85,31 @@
 
                     <!-- Filter row -->
                     <tr v-if="content.showFilterRow" class="bst-filter-row">
-                        <th v-if="selectionEnabled" class="bst-th bst-th-checkbox"></th>
+                        <th v-if="selectionEnabled" class="bst-th bst-th-checkbox bst-th-filter-sticky"></th>
                         <th
                             v-for="col in visibleColumns"
                             :key="'flt-' + col._uid"
-                            class="bst-th bst-th-filter"
-                            :class="thClasses(col)"
+                            class="bst-th bst-th-filter bst-th-filter-sticky"
+                            :class="thFilterClasses(col)"
                             :style="thStyle(col)"
                         >
-                            <input
-                                v-if="col.filterable"
-                                type="text"
-                                class="bst-filter-input"
-                                :value="columnFilters[col._filterKey] || ''"
-                                @input="setColumnFilter(col, $event.target.value)"
-                                placeholder="Filter..."
-                            />
+                            <div v-if="col.filterable" class="bst-filter-wrap" :class="{ 'bst-filter-active': hasActiveFilter(col) }">
+                                <input
+                                    type="text"
+                                    class="bst-filter-input"
+                                    :value="columnFilters[col._filterKey] || ''"
+                                    @input="setColumnFilter(col, $event.target.value)"
+                                    placeholder="Filter..."
+                                />
+                                <button
+                                    v-if="hasActiveFilter(col)"
+                                    type="button"
+                                    class="bst-filter-clear"
+                                    @click="setColumnFilter(col, '')"
+                                >
+                                    <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M12.2 3.8a.6.6 0 0 0-.8 0L8 7.2 4.6 3.8a.6.6 0 0 0-.8.8L7.2 8l-3.4 3.4a.6.6 0 0 0 .8.8L8 8.8l3.4 3.4a.6.6 0 0 0 .8-.8L8.8 8l3.4-3.4a.6.6 0 0 0 0-.8z"/></svg>
+                                </button>
+                            </div>
                         </th>
                     </tr>
                 </thead>
@@ -100,7 +119,7 @@
                     <template v-for="(group, gi) in paginatedGroups" :key="group.headerId">
                         <tr
                             v-for="(item, ii) in group.items"
-                            :key="item._uid"
+                            :key="item._stableId"
                             class="bst-row"
                             :class="rowClasses(group, item, ii, gi)"
                             @click="handleRowClick(group, item)"
@@ -110,7 +129,7 @@
                                 v-if="selectionEnabled && ii === 0"
                                 :rowspan="group.items.length"
                                 class="bst-td bst-td-checkbox"
-                                :class="{ 'bst-selected': isGroupSelected(group), 'bst-active': isGroupActive(group) }"
+                                :class="mergedCellClasses(group)"
                             >
                                 <input
                                     type="checkbox"
@@ -122,13 +141,13 @@
                             </td>
 
                             <!-- All visible columns -->
-                            <template v-for="col in visibleColumns" :key="col._uid + '-' + item._uid">
+                            <template v-for="col in visibleColumns" :key="col._uid + '-' + item._stableId">
                                 <!-- Header column: merged cell on first row -->
                                 <td
                                     v-if="col.source === 'header' && ii === 0"
                                     :rowspan="group.items.length"
                                     class="bst-td bst-td-header"
-                                    :class="tdClasses(col, group, item)"
+                                    :class="headerTdClasses(col, group)"
                                     :style="tdStyle(col)"
                                 >
                                     <span class="bst-cell-text">{{ formatCell(group.header[col.field], col) }}</span>
@@ -138,7 +157,7 @@
                                 <td
                                     v-if="col.source === 'lineitem'"
                                     class="bst-td bst-td-lineitem"
-                                    :class="tdClasses(col, group, item)"
+                                    :class="lineItemTdClasses(col, group, item)"
                                     :style="tdStyle(col)"
                                 >
                                     <img
@@ -158,11 +177,6 @@
                                 </td>
                             </template>
                         </tr>
-
-                        <!-- Group separator -->
-                        <tr v-if="gi < paginatedGroups.length - 1" class="bst-group-sep" aria-hidden="true">
-                            <td :colspan="totalColspan" class="bst-sep-cell"></td>
-                        </tr>
                     </template>
 
                     <!-- Empty state -->
@@ -174,7 +188,9 @@
                                     <line x1="2" y1="9" x2="22" y2="9" />
                                     <line x1="9" y1="3" x2="9" y2="21" />
                                 </svg>
-                                <span>No data to display</span>
+                                <span v-if="hasAnyFilter" class="bst-empty-text">No results match your filters</span>
+                                <span v-else class="bst-empty-text">No data to display</span>
+                                <button v-if="hasAnyFilter" type="button" class="bst-empty-clear-btn" @click="clearFilters">Clear all filters</button>
                             </div>
                         </td>
                     </tr>
@@ -184,17 +200,17 @@
 
         <!-- Pagination bar -->
         <div v-if="paginationEnabled && totalPages > 1" class="bst-pagination">
-            <button type="button" class="bst-page-btn" :disabled="currentPage <= 1" @click="goToPage(1)">
+            <button type="button" class="bst-page-btn" :disabled="currentPage <= 1" @click="goToPage(1)" title="First page">
                 <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M11.7 12.3L7.4 8l4.3-4.3L10.3 2.3 4.6 8l5.7 5.7z"/><path d="M7.7 12.3L3.4 8l4.3-4.3L6.3 2.3.6 8l5.7 5.7z"/></svg>
             </button>
-            <button type="button" class="bst-page-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">
+            <button type="button" class="bst-page-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)" title="Previous page">
                 <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M10.3 12.3L6 8l4.3-4.3L8.9 2.3 3.2 8l5.7 5.7z"/></svg>
             </button>
             <span class="bst-page-label">Page {{ currentPage }} of {{ totalPages }}</span>
-            <button type="button" class="bst-page-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">
+            <button type="button" class="bst-page-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)" title="Next page">
                 <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M5.7 3.7L10 8l-4.3 4.3L7.1 13.7 12.8 8 7.1 2.3z"/></svg>
             </button>
-            <button type="button" class="bst-page-btn" :disabled="currentPage >= totalPages" @click="goToPage(totalPages)">
+            <button type="button" class="bst-page-btn" :disabled="currentPage >= totalPages" @click="goToPage(totalPages)" title="Last page">
                 <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M4.3 3.7L8.6 8l-4.3 4.3L5.7 13.7 11.4 8 5.7 2.3z"/><path d="M8.3 3.7L12.6 8l-4.3 4.3L9.7 13.7 15.4 8 9.7 2.3z"/></svg>
             </button>
         </div>
@@ -203,9 +219,6 @@
 
 <script>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-
-let uidCounter = 0;
-function nextUid() { return '__bst_' + (++uidCounter); }
 
 function normalizeStr(v) {
     return v == null ? '' : String(v).toLowerCase().trim();
@@ -219,7 +232,41 @@ function formatDate(v) {
     let h = d.getHours(), m = d.getMinutes();
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} ${h}:${String(m).padStart(2, '0')}${ampm}`;
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} ${h}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function findFieldCI(obj, fieldName) {
+    if (obj[fieldName] !== undefined) return obj[fieldName];
+    const lower = fieldName.toLowerCase();
+    for (const k of Object.keys(obj)) {
+        if (k.toLowerCase() === lower) return obj[k];
+    }
+    return undefined;
+}
+
+function stripInternalFields(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+        if (k.startsWith('_')) continue;
+        out[k] = v;
+    }
+    return out;
+}
+
+function luminance(hex) {
+    const rgb = hex.replace('#', '').match(/.{2}/g);
+    if (!rgb || rgb.length < 3) return 1;
+    const [r, g, b] = rgb.map(c => {
+        const v = parseInt(c, 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function textColorForBg(bgColor) {
+    if (!bgColor || !bgColor.startsWith('#') || bgColor.length < 7) return '#374151';
+    return luminance(bgColor) > 0.45 ? '#1e293b' : '#ffffff';
 }
 
 export default {
@@ -265,12 +312,7 @@ export default {
             const keyField = refKeyField.value;
             const ci = ciJoin.value;
             for (const item of referenceItems.value) {
-                let key = item[keyField];
-                if (key === undefined) {
-                    for (const k of Object.keys(item)) {
-                        if (k.toLowerCase() === keyField.toLowerCase()) { key = item[k]; break; }
-                    }
-                }
+                const key = findFieldCI(item, keyField);
                 if (key == null) continue;
                 const mapKey = ci ? String(key).toLowerCase() : String(key);
                 map[mapKey] = item;
@@ -278,7 +320,19 @@ export default {
             return map;
         });
 
-        // ═══════════ 4. ENRICHED LINE ITEMS ═══════════
+        // ═══════════ 4. ENRICHED LINE ITEMS (stable IDs) ═══════════
+
+        const stableIdCache = new WeakMap();
+        let stableIdSeq = 0;
+
+        function getStableId(obj) {
+            let id = stableIdCache.get(obj);
+            if (id == null) {
+                id = '__bst_' + (++stableIdSeq);
+                stableIdCache.set(obj, id);
+            }
+            return id;
+        }
 
         const enrichedLineItems = computed(() => {
             const joinField = liRefJoinField.value;
@@ -286,14 +340,9 @@ export default {
             const lookup = refLookup.value;
 
             return lineItems.value.map(li => {
-                const enriched = { ...li, _uid: nextUid() };
+                const enriched = { ...li, _stableId: getStableId(li) };
 
-                let joinVal = li[joinField];
-                if (joinVal === undefined) {
-                    for (const k of Object.keys(li)) {
-                        if (k.toLowerCase() === joinField.toLowerCase()) { joinVal = li[k]; break; }
-                    }
-                }
+                const joinVal = findFieldCI(li, joinField);
 
                 if (joinVal != null) {
                     const lookupKey = ci ? String(joinVal).toLowerCase() : String(joinVal);
@@ -311,18 +360,15 @@ export default {
 
         // ═══════════ 5. GROUP HEADERS + LINE ITEMS ═══════════
 
+        const EMPTY_SENTINEL = Object.freeze({ _empty: true, _stableId: '__bst_empty' });
+
         const groups = computed(() => {
             const hKey = hKeyField.value;
             const fk = liForeignKey.value;
             const itemsByHeader = {};
 
             for (const li of enrichedLineItems.value) {
-                let fkVal = li[fk];
-                if (fkVal === undefined) {
-                    for (const k of Object.keys(li)) {
-                        if (k.toLowerCase() === fk.toLowerCase()) { fkVal = li[k]; break; }
-                    }
-                }
+                const fkVal = findFieldCI(li, fk);
                 const key = fkVal != null ? String(fkVal) : '__none__';
                 if (!itemsByHeader[key]) itemsByHeader[key] = [];
                 itemsByHeader[key].push(li);
@@ -333,7 +379,7 @@ export default {
                 const items = (headerId ? itemsByHeader[headerId] : null) || [];
                 const displayItems = items.length > 0
                     ? items
-                    : [{ _empty: true, _uid: nextUid() }];
+                    : [{ ...EMPTY_SENTINEL, _stableId: '__bst_empty_' + headerId }];
                 return { header: h, headerId, items: displayItems, itemCount: items.length };
             });
         });
@@ -363,6 +409,12 @@ export default {
             return n;
         });
 
+        const densityClass = computed(() => 'bst-density-' + (props.content?.rowDensity || 'normal'));
+
+        const showToolbar = computed(() =>
+            props.content?.showGlobalSearch || paginationEnabled.value || headers.value.length > 0
+        );
+
         // ═══════════ 7. COLUMN WIDTHS (resizable) ═══════════
 
         const columnWidthOverrides = ref({});
@@ -373,9 +425,7 @@ export default {
 
         let resizing = null;
         function startResize(col, event) {
-            const startX = event.clientX;
-            const startW = getColWidth(col);
-            resizing = { col, startX, startW };
+            resizing = { col, startX: event.clientX, startW: getColWidth(col) };
             document.addEventListener('mousemove', onResizeMove);
             document.addEventListener('mouseup', onResizeEnd);
             document.body.style.cursor = 'col-resize';
@@ -398,9 +448,9 @@ export default {
             document.body.style.userSelect = '';
         }
 
-        // ═══════════ 8. SORTING ═══════════
+        // ═══════════ 8. SORTING (tri-state: asc → desc → clear) ═══════════
 
-        const sortState = ref({ field: null, direction: 'asc', source: null });
+        const sortState = ref({ field: null, direction: null, source: null });
 
         function handleSort(col) {
             /* wwEditor:start */
@@ -408,15 +458,15 @@ export default {
             /* wwEditor:end */
             if (!col.sortable) return;
             const key = col._sortKey;
-            if (sortState.value.field === key) {
-                sortState.value = {
-                    field: key,
-                    direction: sortState.value.direction === 'asc' ? 'desc' : 'asc',
-                    source: col.source,
-                };
-            } else {
+
+            if (sortState.value.field !== key) {
                 sortState.value = { field: key, direction: 'asc', source: col.source };
+            } else if (sortState.value.direction === 'asc') {
+                sortState.value = { field: key, direction: 'desc', source: col.source };
+            } else {
+                sortState.value = { field: null, direction: null, source: null };
             }
+
             emit('trigger-event', {
                 name: 'sortChange',
                 event: { value: { field: col.field, direction: sortState.value.direction, source: col.source } },
@@ -440,22 +490,22 @@ export default {
             const field = parts.slice(1).join('.');
             const dir = s.direction === 'desc' ? -1 : 1;
 
-            const result = [...groups.value];
-
             if (source === 'header') {
-                result.sort((a, b) => dir * compareCells(a.header[field], b.header[field]));
-            } else {
-                result.forEach(g => {
-                    if (g.items.length > 1 && !g.items[0]._empty) {
-                        g.items = [...g.items].sort((a, b) => dir * compareCells(a[field], b[field]));
-                    }
-                });
-                result.sort((a, b) => {
-                    const aFirst = a.items[0]?._empty ? null : a.items[0]?.[field];
-                    const bFirst = b.items[0]?._empty ? null : b.items[0]?.[field];
-                    return dir * compareCells(aFirst, bFirst);
-                });
+                return [...groups.value].sort((a, b) => dir * compareCells(a.header[field], b.header[field]));
             }
+
+            const result = groups.value.map(g => {
+                if (g.items.length > 1 && !g.items[0]._empty) {
+                    return { ...g, items: [...g.items].sort((a, b) => dir * compareCells(a[field], b[field])) };
+                }
+                return g;
+            });
+
+            result.sort((a, b) => {
+                const aFirst = a.items[0]?._empty ? null : a.items[0]?.[field];
+                const bFirst = b.items[0]?._empty ? null : b.items[0]?.[field];
+                return dir * compareCells(aFirst, bFirst);
+            });
 
             return result;
         });
@@ -468,6 +518,16 @@ export default {
         function setColumnFilter(col, value) {
             columnFilters.value = { ...columnFilters.value, [col._filterKey]: value };
         }
+
+        function hasActiveFilter(col) {
+            const v = columnFilters.value[col._filterKey];
+            return v != null && v.trim() !== '';
+        }
+
+        const hasAnyFilter = computed(() => {
+            if (globalSearch.value.trim()) return true;
+            return Object.values(columnFilters.value).some(v => v && v.trim());
+        });
 
         function matchesFilter(value, filterStr) {
             if (!filterStr || !filterStr.trim()) return true;
@@ -499,7 +559,7 @@ export default {
                 if (!headerMatchesCol) return false;
 
                 const liCols = rawColumns.value.filter(c => c.source === 'lineitem');
-                let anyItemMatches = group.items.some(item => {
+                const anyItemMatches = group.items.some(item => {
                     if (item._empty) return false;
                     let itemMatchesCol = true;
                     let itemMatchesGlobal = false;
@@ -543,6 +603,10 @@ export default {
             return filteredGroups.value.slice(start, start + pageSize.value);
         });
 
+        watch([globalSearch, columnFilters], () => {
+            currentPage.value = 1;
+        }, { deep: true });
+
         watch(filteredGroups, () => {
             if (currentPage.value > totalPages.value) currentPage.value = Math.max(1, totalPages.value);
         });
@@ -555,6 +619,8 @@ export default {
 
         const selectedIds = ref(new Set());
         const activeGroupId = ref(null);
+
+        const selectedCount = computed(() => selectedIds.value.size);
 
         function isGroupSelected(group) { return selectedIds.value.has(group.headerId); }
         function isGroupActive(group) { return activeGroupId.value === group.headerId; }
@@ -607,8 +673,8 @@ export default {
                 name: 'rowClick',
                 event: {
                     value: {
-                        header: { ...group.header },
-                        lineItem: item._empty ? null : { ...item },
+                        header: stripInternalFields(group.header),
+                        lineItem: item._empty ? null : stripInternalFields(item),
                     },
                 },
             });
@@ -617,8 +683,8 @@ export default {
                 name: 'activeHeaderChange',
                 event: {
                     value: {
-                        header: { ...group.header },
-                        lineItems: group.items.filter(i => !i._empty).map(i => ({ ...i })),
+                        header: stripInternalFields(group.header),
+                        lineItems: group.items.filter(i => !i._empty).map(stripInternalFields),
                     },
                 },
             });
@@ -632,11 +698,11 @@ export default {
 
             for (const group of groups.value) {
                 if (!selectedIds.value.has(group.headerId)) continue;
-                selHeaders.push({ ...group.header });
+                selHeaders.push(stripInternalFields(group.header));
                 selHeaderIds.push(group.headerId);
                 for (const item of group.items) {
                     if (item._empty) continue;
-                    selItems.push({ ...item });
+                    selItems.push(stripInternalFields(item));
                     if (item.id != null) selItemIds.push(item.id);
                 }
             }
@@ -703,13 +769,13 @@ export default {
 
         watch(activeGroupId, (id) => {
             const group = groups.value.find(g => g.headerId === id);
-            if (activeHeaderVar) activeHeaderVar.setValue(group ? { ...group.header } : null);
+            if (activeHeaderVar) activeHeaderVar.setValue(group ? stripInternalFields(group.header) : null);
         });
 
         // ═══════════ 13. FORMATTING ═══════════
 
         function formatCell(value, col) {
-            if (value == null || value === '') return '—';
+            if (value == null || value === '') return '\u2014';
             switch (col.formatter) {
                 case 'date': return formatDate(value);
                 case 'number': return Number(value).toLocaleString();
@@ -722,7 +788,7 @@ export default {
 
         function badgeStyle(value) {
             const bg = statusColorMap.value[value];
-            if (bg) return { background: bg };
+            if (bg) return { background: bg, color: textColorForBg(bg) };
             if (value === true || value === 'true') return { background: '#fee2e2', color: '#991b1b' };
             if (value === false || value === 'false') return {};
             return {};
@@ -732,24 +798,36 @@ export default {
 
         const tableWrapRef = ref(null);
 
-        const rootStyles = computed(() => ({
-            '--bst-header-bg': props.content?.headerBgColor || '#f8f9fa',
-            '--bst-header-text': props.content?.headerTextColor || '#374151',
-            '--bst-row-bg': props.content?.rowBgColor || '#ffffff',
-            '--bst-row-alt-bg': props.content?.rowAltBgColor || '#fafbfc',
-            '--bst-row-hover': props.content?.rowHoverColor || '#f0f4ff',
-            '--bst-selected-bg': props.content?.selectedRowColor || '#e0e7ff',
-            '--bst-active-bg': props.content?.activeRowColor || '#ede9fe',
-            '--bst-border': props.content?.borderColor || '#e5e7eb',
-            '--bst-sep': props.content?.groupSeparatorColor || '#d1d5db',
-            '--bst-font': props.content?.fontFamily || "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            '--bst-font-size': props.content?.fontSize || '13px',
-            '--bst-header-fw': props.content?.headerFontWeight || '600',
-            '--bst-overbooked-bg': props.content?.overbookedHighlight || '#fef2f2',
-            '--bst-cell-padding': props.content?.cellPadding || '',
-        }));
+        const rootStyles = computed(() => {
+            const s = {
+                '--bst-header-bg': props.content?.headerBgColor || '#f8f9fa',
+                '--bst-header-text': props.content?.headerTextColor || '#374151',
+                '--bst-row-bg': props.content?.rowBgColor || '#ffffff',
+                '--bst-row-alt-bg': props.content?.rowAltBgColor || '#fafbfc',
+                '--bst-row-hover': props.content?.rowHoverColor || '#f0f4ff',
+                '--bst-selected-bg': props.content?.selectedRowColor || '#e0e7ff',
+                '--bst-active-bg': props.content?.activeRowColor || '#ede9fe',
+                '--bst-border': props.content?.borderColor || '#e5e7eb',
+                '--bst-sep': props.content?.groupSeparatorColor || '#d1d5db',
+                '--bst-font': props.content?.fontFamily || "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                '--bst-font-size': props.content?.fontSize || '13px',
+                '--bst-header-fw': props.content?.headerFontWeight || '600',
+                '--bst-overbooked-bg': props.content?.overbookedHighlight || '#fef2f2',
+            };
+            const cp = props.content?.cellPadding;
+            if (cp && cp.trim()) s['--bst-cell-padding'] = cp;
+            return s;
+        });
 
         function thClasses(col) {
+            const c = {};
+            if (col.pinned === 'left') c['bst-pinned-left'] = true;
+            if (col.pinned === 'right') c['bst-pinned-right'] = true;
+            if (col.source === 'header') c['bst-th-header-col'] = true;
+            return c;
+        }
+
+        function thFilterClasses(col) {
             const c = {};
             if (col.pinned === 'left') c['bst-pinned-left'] = true;
             if (col.pinned === 'right') c['bst-pinned-right'] = true;
@@ -763,7 +841,16 @@ export default {
             return s;
         }
 
-        function tdClasses(col, group, item) {
+        function headerTdClasses(col, group) {
+            const c = {};
+            if (col.pinned === 'left') c['bst-pinned-left'] = true;
+            if (col.pinned === 'right') c['bst-pinned-right'] = true;
+            if (isGroupSelected(group)) c['bst-selected'] = true;
+            if (isGroupActive(group)) c['bst-active'] = true;
+            return c;
+        }
+
+        function lineItemTdClasses(col, group, item) {
             const c = {};
             if (col.pinned === 'left') c['bst-pinned-left'] = true;
             if (col.pinned === 'right') c['bst-pinned-right'] = true;
@@ -771,6 +858,13 @@ export default {
             if (isGroupActive(group)) c['bst-active'] = true;
             if (item.overbooked === true || item.overbooked === 'true') c['bst-overbooked'] = true;
             return c;
+        }
+
+        function mergedCellClasses(group) {
+            return {
+                'bst-selected': isGroupSelected(group),
+                'bst-active': isGroupActive(group),
+            };
         }
 
         function tdStyle(col) {
@@ -827,8 +921,7 @@ export default {
 
         function selectHeaders({ ids }) {
             if (!Array.isArray(ids)) return;
-            const next = new Set(ids.map(String));
-            selectedIds.value = next;
+            selectedIds.value = new Set(ids.map(String));
             emitSelectionChange();
         }
 
@@ -847,35 +940,34 @@ export default {
         // ═══════════ RETURN ═══════════
 
         return {
-            // Data
             groups,
             filteredGroups,
             paginatedGroups,
             totalLineItems,
 
-            // Columns
             visibleColumns,
             totalColspan,
+            densityClass,
             getColWidth,
+            showToolbar,
 
-            // Sort
             sortState,
             handleSort,
 
-            // Filter
             globalSearch,
             columnFilters,
             setColumnFilter,
+            hasActiveFilter,
+            hasAnyFilter,
 
-            // Pagination
             currentPage,
             totalPages,
             paginationEnabled,
             goToPage,
 
-            // Selection
             selectionEnabled,
             selectedIds,
+            selectedCount,
             allVisibleSelected,
             someVisibleSelected,
             isGroupSelected,
@@ -884,23 +976,22 @@ export default {
             toggleSelectAll,
             handleRowClick,
 
-            // Resize
             startResize,
             tableWrapRef,
 
-            // Formatting
             formatCell,
             badgeStyle,
 
-            // Classes / styles
             rootStyles,
             thClasses,
+            thFilterClasses,
             thStyle,
-            tdClasses,
+            headerTdClasses,
+            lineItemTdClasses,
+            mergedCellClasses,
             tdStyle,
             rowClasses,
 
-            // Actions
             clearSelection,
             selectAll,
             selectHeaders,
@@ -911,12 +1002,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-/* ── Tokens ── */
 $radius: 8px;
 $radius-sm: 5px;
 $transition: 0.15s ease;
 
-/* ── Root ── */
 .bst-root {
     display: flex;
     flex-direction: column;
@@ -950,11 +1039,14 @@ $transition: 0.15s ease;
     border: 1px solid var(--bst-border);
     border-radius: $radius-sm;
     background: #fff;
-    transition: border-color $transition;
+    transition: border-color $transition, box-shadow $transition;
     flex: 1;
     max-width: 360px;
 
-    &:focus-within { border-color: #6366f1; }
+    &:focus-within {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+    }
 }
 
 .bst-search-icon {
@@ -997,10 +1089,30 @@ $transition: 0.15s ease;
 
 .bst-toolbar-spacer { flex: 1; }
 
-.bst-page-info {
+.bst-toolbar-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 12px;
     color: #6b7280;
     white-space: nowrap;
+}
+
+.bst-stat {
+    font-variant-numeric: tabular-nums;
+}
+
+.bst-stat-label {
+    font-weight: 400;
+}
+
+.bst-stat-selected {
+    color: #6366f1;
+    font-weight: 600;
+}
+
+.bst-stat-sep {
+    color: #d1d5db;
 }
 
 /* ═══════════ TABLE WRAPPER ═══════════ */
@@ -1020,33 +1132,27 @@ $transition: 0.15s ease;
 
 /* ── Density ── */
 .bst-density-compact .bst-td,
-.bst-density-compact .bst-th {
-    padding: 4px 8px;
-}
+.bst-density-compact .bst-th { padding: 4px 8px; }
 
 .bst-density-normal .bst-td,
-.bst-density-normal .bst-th {
-    padding: 8px 12px;
-}
+.bst-density-normal .bst-th { padding: 8px 12px; }
 
 .bst-density-comfortable .bst-td,
-.bst-density-comfortable .bst-th {
-    padding: 12px 16px;
-}
+.bst-density-comfortable .bst-th { padding: 12px 16px; }
 
-/* Override with custom padding if set */
-.bst-root[style*='--bst-cell-padding:'] {
-    .bst-td,
-    .bst-th {
-        padding: var(--bst-cell-padding);
-    }
+.bst-root[style*='--bst-cell-padding'] .bst-td,
+.bst-root[style*='--bst-cell-padding'] .bst-th {
+    padding: var(--bst-cell-padding);
 }
 
 /* ═══════════ THEAD ═══════════ */
-.bst-th {
+.bst-thead {
     position: sticky;
     top: 0;
-    z-index: 3;
+    z-index: 5;
+}
+
+.bst-th {
     background: var(--bst-header-bg);
     color: var(--bst-header-text);
     font-weight: var(--bst-header-fw);
@@ -1055,11 +1161,18 @@ $transition: 0.15s ease;
     border-bottom: 2px solid var(--bst-border);
     user-select: none;
     vertical-align: middle;
+    position: relative;
+}
 
-    /* needed as positioning context for resize handle */
-    &:not(.bst-pinned-left):not(.bst-pinned-right) {
-        position: sticky;
-    }
+.bst-th-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.bst-th-filter-sticky {
+    position: sticky;
+    z-index: 3;
 }
 
 .bst-th-checkbox {
@@ -1079,6 +1192,7 @@ $transition: 0.15s ease;
     cursor: pointer;
 
     &:hover .bst-th-label { color: #111827; }
+    &:hover .bst-sort-hint { opacity: 0.7; }
 }
 
 .bst-th-label {
@@ -1089,8 +1203,17 @@ $transition: 0.15s ease;
 
 .bst-sort-icon {
     display: inline-flex;
-    color: #6366f1;
     flex-shrink: 0;
+}
+
+.bst-sort-active {
+    color: #6366f1;
+}
+
+.bst-sort-hint {
+    color: #9ca3af;
+    opacity: 0.3;
+    transition: opacity $transition;
 }
 
 /* ── Resize handle ── */
@@ -1120,16 +1243,18 @@ $transition: 0.15s ease;
     }
 }
 
+/* ── Filter row ── */
 .bst-filter-row .bst-th {
-    position: relative;
-    top: auto;
-    z-index: 2;
     border-bottom: 1px solid var(--bst-border);
+    border-top: none;
+    font-weight: 400;
     background: var(--bst-header-bg);
 }
 
-.bst-th-filter {
-    font-weight: 400;
+.bst-filter-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
 }
 
 .bst-filter-input {
@@ -1143,15 +1268,43 @@ $transition: 0.15s ease;
     color: #111827;
     background: #fff;
     outline: none;
-    transition: border-color $transition;
+    transition: border-color $transition, box-shadow $transition;
 
     &::placeholder { color: #9ca3af; }
-    &:focus { border-color: #6366f1; }
+    &:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08);
+    }
+}
+
+.bst-filter-active .bst-filter-input {
+    border-color: #6366f1;
+    padding-right: 22px;
+}
+
+.bst-filter-clear {
+    position: absolute;
+    right: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: #e0e7ff;
+    color: #6366f1;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+    transition: background $transition;
+
+    &:hover { background: #c7d2fe; }
 }
 
 /* ═══════════ TBODY ═══════════ */
 .bst-row {
     transition: background $transition;
+    background: var(--bst-row-bg);
 
     &:hover {
         background: var(--bst-row-hover);
@@ -1169,7 +1322,7 @@ $transition: 0.15s ease;
     background: var(--bst-selected-bg) !important;
 }
 
-.bst-row-active {
+.bst-row-active:not(.bst-row-selected) {
     background: var(--bst-active-bg) !important;
 }
 
@@ -1192,14 +1345,14 @@ $transition: 0.15s ease;
     min-width: 48px;
     max-width: 48px;
     text-align: center;
-    vertical-align: top;
+    vertical-align: middle;
     border-bottom: 1px solid var(--bst-border);
 }
 
 .bst-td-header {
     background: inherit;
     font-weight: 500;
-    vertical-align: top;
+    vertical-align: middle;
     border-right: 1px solid var(--bst-border);
 }
 
@@ -1207,19 +1360,14 @@ $transition: 0.15s ease;
     background: inherit;
 }
 
-/* Group first/last row borders */
+/* Group first row: top separator */
 .bst-group-first .bst-td {
-    border-top: 1px solid var(--bst-sep);
+    border-top: 2px solid var(--bst-sep);
 }
 
-/* Remove top border from very first group */
-tbody tr:first-child .bst-td,
-.bst-group-sep + .bst-group-first .bst-td {
+/* Very first visible group: no top border since thead is above */
+tbody tr:first-child.bst-group-first .bst-td {
     border-top: none;
-}
-
-.bst-group-last .bst-td-lineitem {
-    border-bottom: 1px solid var(--bst-sep);
 }
 
 /* ── Pinned columns ── */
@@ -1237,20 +1385,27 @@ tbody tr:first-child .bst-td,
 
 thead .bst-pinned-left,
 thead .bst-pinned-right {
-    z-index: 4;
+    z-index: 6;
 }
 
-/* ── Group separator row ── */
-.bst-group-sep {
-    height: 0;
+.bst-pinned-left::after,
+.bst-pinned-right::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 6px;
     pointer-events: none;
 }
 
-.bst-sep-cell {
-    padding: 0 !important;
-    border: none !important;
-    height: 3px;
-    background: var(--bst-sep);
+.bst-pinned-left::after {
+    right: -6px;
+    background: linear-gradient(to right, rgba(0,0,0,0.04), transparent);
+}
+
+.bst-pinned-right::before {
+    left: -6px;
+    background: linear-gradient(to left, rgba(0,0,0,0.04), transparent);
 }
 
 /* ═══════════ CELL CONTENT ═══════════ */
@@ -1314,6 +1469,29 @@ thead .bst-pinned-right {
     opacity: 0.5;
 }
 
+.bst-empty-text {
+    font-size: 13px;
+}
+
+.bst-empty-clear-btn {
+    margin-top: 4px;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6366f1;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: $radius-sm;
+    cursor: pointer;
+    transition: all $transition;
+
+    &:hover {
+        background: #e0e7ff;
+        border-color: #a5b4fc;
+    }
+}
+
 /* ═══════════ PAGINATION ═══════════ */
 .bst-pagination {
     display: flex;
@@ -1354,6 +1532,7 @@ thead .bst-pinned-right {
     color: #6b7280;
     padding: 0 8px;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ═══════════ RESPONSIVE ═══════════ */
