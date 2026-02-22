@@ -55,10 +55,10 @@
                             />
                         </th>
                         <th
-                            v-for="col in visibleColumns"
+                            v-for="(col, colIndex) in visibleColumns"
                             :key="'th-' + col._uid"
                             class="bst-th bst-th-sticky"
-                            :class="thClasses(col)"
+                            :class="thClasses(col, colIndex)"
                         >
                             <div class="bst-th-inner">
                                 <div class="bst-th-content bst-sortable" @click="handleSort(col)">
@@ -142,12 +142,12 @@
                                 />
                             </td>
 
-                            <template v-for="col in visibleColumns" :key="col._uid + '-' + item._stableId">
+                            <template v-for="(col, colIndex) in visibleColumns" :key="col._uid + '-' + item._stableId">
                                 <td
                                     v-if="col.source === 'header' && ii === 0"
                                     :rowspan="group.items.length"
                                     class="bst-td bst-td-header"
-                                    :class="headerTdClasses(col, group)"
+                                    :class="headerTdClasses(col, group, colIndex)"
                                 >
                                     <span class="bst-cell-text">{{ getDisplayOverride(col, group.header) ?? formatCell(group.header[col.field], col) }}</span>
                                 </td>
@@ -350,19 +350,12 @@ export default {
         const rawColumns = computed(() => {
             const cols = props.content?.columns;
             if (!Array.isArray(cols)) return [];
-            const withMeta = cols.map((c, i) => ({
+            return cols.map((c, i) => ({
                 ...c,
-                _arrayIndex: i,
                 _uid: (c.field || 'col') + '_' + (c.source || 'h') + '_' + i,
                 _sortKey: (c.source || 'header') + '.' + (c.field || ''),
                 _filterKey: (c.source || 'header') + '.' + (c.field || ''),
             }));
-            // Order by explicit index (editor-managed); fallback to array position
-            return [...withMeta].sort((a, b) => {
-                const ia = a.index != null ? a.index : a._arrayIndex;
-                const ib = b.index != null ? b.index : b._arrayIndex;
-                return ia - ib;
-            });
         });
 
         const visibleColumns = computed(() => rawColumns.value.filter(c => c.visible !== false && c.field));
@@ -746,14 +739,11 @@ export default {
             return override !== undefined ? override : null;
         }
 
-        // ═══════════ Column list actions: up/down change index in list (editor tool setup) ═══════════
-        // Order is by column.index; add/remove/move update indices and emit so editor persists.
+        // ═══════════ Column list actions: editor auto-assigns order; up/down reorder array ═══════════
 
         function addColumn() {
             const cols = [...(props.content?.columns || [])];
-            const maxIndex = cols.reduce((m, c) => Math.max(m, c.index != null ? c.index : -1), -1);
             cols.push({
-                index: maxIndex + 1,
                 source: 'header',
                 field: '',
                 title: '',
@@ -764,53 +754,25 @@ export default {
             emit('update:content', { columns: cols });
         }
 
-        function removeColumn(displayIndex) {
+        function removeColumn(index) {
             const cols = [...(props.content?.columns || [])];
-            const withMeta = cols.map((c, i) => ({ ...c, _arrayIndex: i }));
-            const sorted = [...withMeta].sort((a, b) => (a.index != null ? a.index : a._arrayIndex) - (b.index != null ? b.index : b._arrayIndex));
-            const at = sorted[displayIndex];
-            if (!at) return;
-            const arrayIndex = at._arrayIndex;
-            cols.splice(arrayIndex, 1);
-            // Renumber indices
-            const reordered = cols.map((c, i) => ({ ...c, index: i }));
-            emit('update:content', { columns: reordered });
+            if (index < 0 || index >= cols.length) return;
+            cols.splice(index, 1);
+            emit('update:content', { columns: cols });
         }
 
-        function moveColumnUp(displayIndex) {
-            if (displayIndex <= 0) return;
+        function moveColumnUp(index) {
+            if (index <= 0) return;
             const cols = [...(props.content?.columns || [])];
-            const withMeta = cols.map((c, i) => ({ ...c, _arrayIndex: i }));
-            const sorted = [...withMeta].sort((a, b) => (a.index != null ? a.index : a._arrayIndex) - (b.index != null ? b.index : b._arrayIndex));
-            const a = sorted[displayIndex - 1];
-            const b = sorted[displayIndex];
-            if (!a || !b) return;
-            const ai = a.index != null ? a.index : a._arrayIndex;
-            const bi = b.index != null ? b.index : b._arrayIndex;
-            const out = cols.map((c, i) => {
-                if (i === a._arrayIndex) return { ...c, index: bi };
-                if (i === b._arrayIndex) return { ...c, index: ai };
-                return { ...c };
-            });
-            emit('update:content', { columns: out });
+            [cols[index - 1], cols[index]] = [cols[index], cols[index - 1]];
+            emit('update:content', { columns: cols });
         }
 
-        function moveColumnDown(displayIndex) {
+        function moveColumnDown(index) {
             const cols = [...(props.content?.columns || [])];
-            const withMeta = cols.map((c, i) => ({ ...c, _arrayIndex: i }));
-            const sorted = [...withMeta].sort((a, b) => (a.index != null ? a.index : a._arrayIndex) - (b.index != null ? b.index : b._arrayIndex));
-            if (displayIndex >= sorted.length - 1) return;
-            const a = sorted[displayIndex];
-            const b = sorted[displayIndex + 1];
-            if (!a || !b) return;
-            const ai = a.index != null ? a.index : a._arrayIndex;
-            const bi = b.index != null ? b.index : b._arrayIndex;
-            const out = cols.map((c, i) => {
-                if (i === a._arrayIndex) return { ...c, index: bi };
-                if (i === b._arrayIndex) return { ...c, index: ai };
-                return { ...c };
-            });
-            emit('update:content', { columns: out });
+            if (index >= cols.length - 1) return;
+            [cols[index], cols[index + 1]] = [cols[index + 1], cols[index]];
+            emit('update:content', { columns: cols });
         }
 
         const statusColorMap = computed(() => props.content?.statusColorMap || {});
@@ -848,14 +810,22 @@ export default {
             return s;
         });
 
-        function thClasses(col) {
-            return { 'bst-th-header-col': col.source === 'header' };
+        function thClasses(col, colIndex) {
+            const vis = visibleColumns.value;
+            const headerAfterLine = col.source === 'header' && colIndex > 0 && vis[colIndex - 1]?.source === 'lineitem';
+            return {
+                'bst-th-header-col': col.source === 'header',
+                'bst-header-after-line': headerAfterLine,
+            };
         }
 
-        function headerTdClasses(col, group) {
+        function headerTdClasses(col, group, colIndex) {
+            const vis = visibleColumns.value;
+            const headerAfterLine = col.source === 'header' && colIndex > 0 && vis[colIndex - 1]?.source === 'lineitem';
             return {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
+                'bst-header-after-line': headerAfterLine,
             };
         }
 
@@ -1169,6 +1139,12 @@ $transition: 0.15s ease;
     border-right: 1px solid var(--bst-border);
 }
 .bst-td-lineitem { background: inherit; }
+
+/* Header column to the right of a line column: add left border */
+.bst-header-after-line.bst-th,
+.bst-header-after-line.bst-td-header {
+    border-left: 1px solid var(--bst-border);
+}
 
 .bst-group-first .bst-td { border-top: 2px solid var(--bst-sep); }
 tbody tr:first-child.bst-group-first .bst-td { border-top: none; }
