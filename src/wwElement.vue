@@ -350,12 +350,19 @@ export default {
         const rawColumns = computed(() => {
             const cols = props.content?.columns;
             if (!Array.isArray(cols)) return [];
-            return cols.map((c, i) => ({
+            const withMeta = cols.map((c, i) => ({
                 ...c,
+                _arrayIndex: i,
                 _uid: (c.field || 'col') + '_' + (c.source || 'h') + '_' + i,
                 _sortKey: (c.source || 'header') + '.' + (c.field || ''),
                 _filterKey: (c.source || 'header') + '.' + (c.field || ''),
             }));
+            // Order by explicit index (editor-managed); fallback to array position
+            return [...withMeta].sort((a, b) => {
+                const ia = a.index != null ? a.index : a._arrayIndex;
+                const ib = b.index != null ? b.index : b._arrayIndex;
+                return ia - ib;
+            });
         });
 
         const visibleColumns = computed(() => rawColumns.value.filter(c => c.visible !== false && c.field));
@@ -739,11 +746,14 @@ export default {
             return override !== undefined ? override : null;
         }
 
-        // ═══════════ Column list actions (editor add/remove/move) ═══════════
+        // ═══════════ Column list actions: up/down change index in list (editor tool setup) ═══════════
+        // Order is by column.index; add/remove/move update indices and emit so editor persists.
 
         function addColumn() {
             const cols = [...(props.content?.columns || [])];
+            const maxIndex = cols.reduce((m, c) => Math.max(m, c.index != null ? c.index : -1), -1);
             cols.push({
+                index: maxIndex + 1,
                 source: 'header',
                 field: '',
                 title: '',
@@ -754,25 +764,53 @@ export default {
             emit('update:content', { columns: cols });
         }
 
-        function removeColumn(index) {
+        function removeColumn(displayIndex) {
             const cols = [...(props.content?.columns || [])];
-            if (index < 0 || index >= cols.length) return;
-            cols.splice(index, 1);
-            emit('update:content', { columns: cols });
+            const withMeta = cols.map((c, i) => ({ ...c, _arrayIndex: i }));
+            const sorted = [...withMeta].sort((a, b) => (a.index != null ? a.index : a._arrayIndex) - (b.index != null ? b.index : b._arrayIndex));
+            const at = sorted[displayIndex];
+            if (!at) return;
+            const arrayIndex = at._arrayIndex;
+            cols.splice(arrayIndex, 1);
+            // Renumber indices
+            const reordered = cols.map((c, i) => ({ ...c, index: i }));
+            emit('update:content', { columns: reordered });
         }
 
-        function moveColumnUp(index) {
-            if (index <= 0) return;
+        function moveColumnUp(displayIndex) {
+            if (displayIndex <= 0) return;
             const cols = [...(props.content?.columns || [])];
-            [cols[index - 1], cols[index]] = [cols[index], cols[index - 1]];
-            emit('update:content', { columns: cols });
+            const withMeta = cols.map((c, i) => ({ ...c, _arrayIndex: i }));
+            const sorted = [...withMeta].sort((a, b) => (a.index != null ? a.index : a._arrayIndex) - (b.index != null ? b.index : b._arrayIndex));
+            const a = sorted[displayIndex - 1];
+            const b = sorted[displayIndex];
+            if (!a || !b) return;
+            const ai = a.index != null ? a.index : a._arrayIndex;
+            const bi = b.index != null ? b.index : b._arrayIndex;
+            const out = cols.map((c, i) => {
+                if (i === a._arrayIndex) return { ...c, index: bi };
+                if (i === b._arrayIndex) return { ...c, index: ai };
+                return { ...c };
+            });
+            emit('update:content', { columns: out });
         }
 
-        function moveColumnDown(index) {
+        function moveColumnDown(displayIndex) {
             const cols = [...(props.content?.columns || [])];
-            if (index >= cols.length - 1) return;
-            [cols[index], cols[index + 1]] = [cols[index + 1], cols[index]];
-            emit('update:content', { columns: cols });
+            const withMeta = cols.map((c, i) => ({ ...c, _arrayIndex: i }));
+            const sorted = [...withMeta].sort((a, b) => (a.index != null ? a.index : a._arrayIndex) - (b.index != null ? b.index : b._arrayIndex));
+            if (displayIndex >= sorted.length - 1) return;
+            const a = sorted[displayIndex];
+            const b = sorted[displayIndex + 1];
+            if (!a || !b) return;
+            const ai = a.index != null ? a.index : a._arrayIndex;
+            const bi = b.index != null ? b.index : b._arrayIndex;
+            const out = cols.map((c, i) => {
+                if (i === a._arrayIndex) return { ...c, index: bi };
+                if (i === b._arrayIndex) return { ...c, index: ai };
+                return { ...c };
+            });
+            emit('update:content', { columns: out });
         }
 
         const statusColorMap = computed(() => props.content?.statusColorMap || {});

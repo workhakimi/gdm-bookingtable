@@ -191,7 +191,8 @@ export default {
                 getItemLabel(item, index) {
                     const src = item?.source === 'lineitem' ? 'Line' : 'Hdr';
                     const display = item?.title?.trim() || item?.field || 'Column ' + (index + 1);
-                    return `${display} [${src}]`;
+                    const idx = item?.index != null ? item.index : index;
+                    return `${idx}. ${display} [${src}]`;
                 },
                 add: 'addColumn',
                 remove: 'removeColumn',
@@ -202,6 +203,12 @@ export default {
                     type: 'Object',
                     options: {
                         item: {
+                            index: {
+                                label: { en: 'Index' },
+                                type: 'Number',
+                                defaultValue: 0,
+                                options: { min: 0, step: 1 },
+                            },
                             source: {
                                 label: { en: 'Source' },
                                 type: 'TextSelect',
