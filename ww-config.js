@@ -242,6 +242,14 @@ export default {
                                 propertyHelp: { tooltip: 'Show filter (search) for this column in the header' },
                                 /* wwEditor:end */
                             },
+                            filterByDisplayValue: {
+                                label: { en: 'Filter by display value' },
+                                type: 'OnOff',
+                                defaultValue: false,
+                                /* wwEditor:start */
+                                propertyHelp: { tooltip: 'When on and Display value override is set, search/filter uses the override result; otherwise uses the raw field value.' },
+                                /* wwEditor:end */
+                            },
                             displayValueFormula: {
                                 label: { en: 'Display value override' },
                                 type: 'Formula',
@@ -270,7 +278,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of column configs: { source, field, title?, width?, formatter?, visible?, filterable?, displayValueFormula? }',
+                tooltip: 'Array of column configs: { source, field, title?, width?, formatter?, visible?, filterable?, filterByDisplayValue?, displayValueFormula? }',
             },
             /* wwEditor:end */
         },

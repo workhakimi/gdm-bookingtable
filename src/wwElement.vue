@@ -77,10 +77,13 @@
                                     class="bst-col-filter-btn"
                                     :class="{ 'bst-col-filter-btn-active': hasActiveFilter(col) }"
                                     @click.stop="toggleFilterPopover(col)"
-                                    title="Filter this column"
+                                    :title="col.formatter === 'date' ? 'Filter by date' : 'Filter this column'"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
-                                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    <svg v-if="col.formatter === 'date'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                                    </svg>
+                                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                                        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                     </svg>
                                 </button>
                             </div>
@@ -91,24 +94,68 @@
                                 class="bst-col-filter-popover"
                                 @click.stop
                             >
-                                <div class="bst-col-filter-input-wrap">
-                                    <input
-                                        type="text"
-                                        class="bst-col-filter-input"
-                                        :value="columnFilters[col._filterKey] || ''"
-                                        @input="setColumnFilter(col, $event.target.value)"
-                                        placeholder="Type to filter..."
-                                        ref="filterPopoverInputRef"
-                                    />
-                                    <button
-                                        v-if="hasActiveFilter(col)"
-                                        type="button"
-                                        class="bst-col-filter-input-clear"
-                                        @click="setColumnFilter(col, '')"
-                                    >
-                                        <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M12.2 3.8a.6.6 0 0 0-.8 0L8 7.2 4.6 3.8a.6.6 0 0 0-.8.8L7.2 8l-3.4 3.4a.6.6 0 0 0 .8.8L8 8.8l3.4 3.4a.6.6 0 0 0 .8-.8L8.8 8l3.4-3.4a.6.6 0 0 0 0-.8z"/></svg>
-                                    </button>
-                                </div>
+                                <!-- Date column: mode + date input(s) -->
+                                <template v-if="col.formatter === 'date'">
+                                    <div class="bst-filter-date-wrap">
+                                        <select
+                                            class="bst-filter-date-mode"
+                                            :value="getDateFilterMode(col)"
+                                            @change="setDateFilterMode(col, $event.target.value)"
+                                        >
+                                            <option value="">No filter</option>
+                                            <option value="is">Is</option>
+                                            <option value="before">Before</option>
+                                            <option value="after">After</option>
+                                            <option value="between">Between</option>
+                                        </select>
+                                        <input
+                                            v-if="getDateFilterMode(col)"
+                                            type="date"
+                                            class="bst-filter-date-input"
+                                            :value="getDateFilterValue(col)"
+                                            @input="setDateFilterValue(col, $event.target.value)"
+                                        />
+                                        <template v-if="getDateFilterMode(col) === 'between'">
+                                            <span class="bst-filter-date-sep">and</span>
+                                            <input
+                                                type="date"
+                                                class="bst-filter-date-input"
+                                                :value="getDateFilterValueEnd(col)"
+                                                @input="setDateFilterValueEnd(col, $event.target.value)"
+                                            />
+                                        </template>
+                                        <button
+                                            v-if="hasActiveFilter(col)"
+                                            type="button"
+                                            class="bst-col-filter-input-clear bst-filter-date-clear"
+                                            @click="clearDateFilter(col)"
+                                            title="Clear filter"
+                                        >
+                                            <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M12.2 3.8a.6.6 0 0 0-.8 0L8 7.2 4.6 3.8a.6.6 0 0 0-.8.8L7.2 8l-3.4 3.4a.6.6 0 0 0 .8.8L8 8.8l3.4 3.4a.6.6 0 0 0 .8-.8L8.8 8l3.4-3.4a.6.6 0 0 0 0-.8z"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                                <!-- Text/number etc: single text input -->
+                                <template v-else>
+                                    <div class="bst-col-filter-input-wrap">
+                                        <input
+                                            type="text"
+                                            class="bst-col-filter-input"
+                                            :value="columnFilters[col._filterKey] || ''"
+                                            @input="setColumnFilter(col, $event.target.value)"
+                                            placeholder="Type to filter..."
+                                            ref="filterPopoverInputRef"
+                                        />
+                                        <button
+                                            v-if="hasActiveFilter(col)"
+                                            type="button"
+                                            class="bst-col-filter-input-clear"
+                                            @click="setColumnFilter(col, '')"
+                                        >
+                                            <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M12.2 3.8a.6.6 0 0 0-.8 0L8 7.2 4.6 3.8a.6.6 0 0 0-.8.8L7.2 8l-3.4 3.4a.6.6 0 0 0 .8.8L8 8.8l3.4 3.4a.6.6 0 0 0 .8-.8L8.8 8l3.4-3.4a.6.6 0 0 0 0-.8z"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
                             </div>
 
                             <div
@@ -489,8 +536,58 @@ export default {
 
         const globalSearch = ref('');
         const columnFilters = ref({});
+        const columnDateFilters = ref({});
         const activeFilterCol = ref(null);
         const filterPopoverInputRef = ref(null);
+
+        function getDateFilter(col) {
+            const fk = col._filterKey;
+            return columnDateFilters.value[fk] || { mode: '', value: '', valueEnd: '' };
+        }
+
+        function getDateFilterMode(col) {
+            return getDateFilter(col).mode || '';
+        }
+
+        function getDateFilterValue(col) {
+            return getDateFilter(col).value || '';
+        }
+
+        function getDateFilterValueEnd(col) {
+            return getDateFilter(col).valueEnd || '';
+        }
+
+        function setDateFilterMode(col, mode) {
+            const fk = col._filterKey;
+            const prev = getDateFilter(col);
+            columnDateFilters.value = {
+                ...columnDateFilters.value,
+                [fk]: { ...prev, mode: mode || '', value: mode ? prev.value : '', valueEnd: mode === 'between' ? prev.valueEnd : '' },
+            };
+        }
+
+        function setDateFilterValue(col, value) {
+            const fk = col._filterKey;
+            columnDateFilters.value = {
+                ...columnDateFilters.value,
+                [fk]: { ...getDateFilter(col), value: value || '' },
+            };
+        }
+
+        function setDateFilterValueEnd(col, value) {
+            const fk = col._filterKey;
+            columnDateFilters.value = {
+                ...columnDateFilters.value,
+                [fk]: { ...getDateFilter(col), valueEnd: value || '' },
+            };
+        }
+
+        function clearDateFilter(col) {
+            const fk = col._filterKey;
+            const next = { ...columnDateFilters.value };
+            delete next[fk];
+            columnDateFilters.value = next;
+        }
 
         function toggleFilterPopover(col) {
             if (activeFilterCol.value === col._uid) {
@@ -498,7 +595,7 @@ export default {
             } else {
                 activeFilterCol.value = col._uid;
                 nextTick(() => {
-                    const el = document.querySelector('.bst-col-filter-popover .bst-col-filter-input');
+                    const el = document.querySelector('.bst-col-filter-popover .bst-col-filter-input, .bst-col-filter-popover .bst-filter-date-mode');
                     if (el) el.focus();
                 });
             }
@@ -513,14 +610,42 @@ export default {
         }
 
         function hasActiveFilter(col) {
+            if (col.formatter === 'date') {
+                const d = getDateFilter(col);
+                if (!d.mode) return false;
+                if (d.mode === 'between') return !!(d.value && d.valueEnd);
+                return !!d.value;
+            }
             const v = columnFilters.value[col._filterKey];
             return v != null && v.trim() !== '';
         }
 
         const hasAnyFilter = computed(() => {
             if (globalSearch.value.trim()) return true;
-            return Object.values(columnFilters.value).some(v => v && v.trim());
+            if (Object.values(columnFilters.value).some(v => v && v.trim())) return true;
+            return Object.values(columnDateFilters.value).some(d => d.mode && (d.mode === 'between' ? (d.value && d.valueEnd) : d.value));
         });
+
+        function parseDateOnly(val) {
+            if (val == null || val === '') return null;
+            const d = new Date(val);
+            if (Number.isNaN(d.getTime())) return null;
+            const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + day;
+        }
+
+        function matchesDateFilter(cellVal, dateFilter) {
+            if (!dateFilter.mode) return true;
+            const cellDate = parseDateOnly(cellVal);
+            const filterDate = dateFilter.value ? parseDateOnly(dateFilter.value) : null;
+            const filterEnd = dateFilter.valueEnd ? parseDateOnly(dateFilter.valueEnd) : null;
+            if (!filterDate && dateFilter.mode !== 'between') return true;
+            if (dateFilter.mode === 'is') return cellDate !== null && cellDate === filterDate;
+            if (dateFilter.mode === 'before') return cellDate !== null && filterDate !== null && cellDate < filterDate;
+            if (dateFilter.mode === 'after') return cellDate !== null && filterDate !== null && cellDate > filterDate;
+            if (dateFilter.mode === 'between') return cellDate !== null && filterDate !== null && filterEnd !== null && cellDate >= filterDate && cellDate <= filterEnd;
+            return true;
+        }
 
         function matchesFilter(value, filterStr) {
             if (!filterStr || !filterStr.trim()) return true;
@@ -531,9 +656,12 @@ export default {
             let result = sortedGroups.value;
             const gs = normalizeStr(globalSearch.value);
             const colFilts = columnFilters.value;
-            const hasColFilters = Object.values(colFilts).some(v => v && v.trim());
+            const dateFilts = columnDateFilters.value;
+            const hasTextFilters = Object.values(colFilts).some(v => v && v.trim());
+            const hasDateFilters = Object.values(dateFilts).some(d => d.mode && (d.mode === 'between' ? (d.value && d.valueEnd) : d.value));
+            const hasAnyColFilter = hasTextFilters || hasDateFilters;
 
-            if (!gs && !hasColFilters) return result;
+            if (!gs && !hasAnyColFilter) return result;
 
             return result.filter(group => {
                 let headerMatchesCol = true;
@@ -541,9 +669,18 @@ export default {
 
                 for (const col of rawColumns.value) {
                     if (col.source !== 'header' || col.filterable === false) continue;
-                    const val = group.header[col.field];
                     const fk = col._filterKey;
-                    if (colFilts[fk] && colFilts[fk].trim()) {
+                    const rawVal = group.header[col.field];
+                    const useDisplayForFilter = !!col.filterByDisplayValue && !!col.displayValueFormula;
+                    const displayVal = useDisplayForFilter ? getDisplayOverride(col, group.header) : undefined;
+                    const val = (displayVal !== undefined && displayVal !== null) ? displayVal : rawVal;
+
+                    if (col.formatter === 'date') {
+                        const df = dateFilts[fk];
+                        if (df?.mode && (df.mode === 'between' ? (df.value && df.valueEnd) : df.value)) {
+                            if (!matchesDateFilter(val, df)) { headerMatchesCol = false; break; }
+                        }
+                    } else if (colFilts[fk]?.trim()) {
                         if (!matchesFilter(val, colFilts[fk])) { headerMatchesCol = false; break; }
                     }
                     if (gs && normalizeStr(val).includes(gs)) headerMatchesGlobal = true;
@@ -557,9 +694,18 @@ export default {
                     let itemMatchesCol = true;
                     let itemMatchesGlobal = false;
                     for (const col of liCols) {
-                        const val = item[col.field];
                         const fk = col._filterKey;
-                        if (colFilts[fk] && colFilts[fk].trim()) {
+                        const rawVal = item[col.field];
+                        const useDisplayForFilter = !!col.filterByDisplayValue && !!col.displayValueFormula;
+                        const displayVal = useDisplayForFilter ? getDisplayOverride(col, { ...item, header: group.header }) : undefined;
+                        const val = (displayVal !== undefined && displayVal !== null) ? displayVal : rawVal;
+
+                        if (col.formatter === 'date') {
+                            const df = dateFilts[fk];
+                            if (df?.mode && (df.mode === 'between' ? (df.value && df.valueEnd) : df.value)) {
+                                if (!matchesDateFilter(val, df)) { itemMatchesCol = false; break; }
+                            }
+                        } else if (colFilts[fk]?.trim()) {
                             if (!matchesFilter(val, colFilts[fk])) { itemMatchesCol = false; break; }
                         }
                         if (gs && normalizeStr(val).includes(gs)) itemMatchesGlobal = true;
@@ -568,8 +714,14 @@ export default {
                 });
 
                 if (gs) return headerMatchesGlobal || anyItemMatches;
-                if (hasColFilters) {
-                    const hasLiFilter = liCols.some(c => colFilts[c._filterKey]?.trim());
+                if (hasAnyColFilter) {
+                    const hasLiFilter = liCols.some(c => {
+                        if (c.formatter === 'date') {
+                            const d = dateFilts[c._filterKey];
+                            return d?.mode && (d.mode === 'between' ? (d.value && d.valueEnd) : d.value);
+                        }
+                        return colFilts[c._filterKey]?.trim();
+                    });
                     return hasLiFilter ? anyItemMatches : true;
                 }
                 return true;
@@ -1104,6 +1256,25 @@ $transition: 0.15s ease;
     transition: background $transition;
     &:hover { background: #c7d2fe; }
 }
+
+/* ── Date filter (before / after / is / between) ── */
+.bst-filter-date-wrap {
+    display: flex; flex-direction: column; gap: 6px;
+}
+.bst-filter-date-mode {
+    width: 100%; height: 28px; padding: 0 8px;
+    font: inherit; font-size: 12px; color: #111827; background: #fff;
+    border: 1px solid var(--bst-border); border-radius: 4px; outline: none;
+    &:focus { border-color: #6366f1; }
+}
+.bst-filter-date-input {
+    width: 100%; height: 28px; padding: 0 8px;
+    font: inherit; font-size: 12px; color: #111827; background: #fff;
+    border: 1px solid var(--bst-border); border-radius: 4px; outline: none;
+    &:focus { border-color: #6366f1; }
+}
+.bst-filter-date-sep { font-size: 11px; color: #6b7280; }
+.bst-filter-date-clear { position: static; margin-top: 4px; }
 
 /* ── Resize handle ── */
 .bst-resize-handle {
