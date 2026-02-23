@@ -334,10 +334,10 @@ export default {
         headerTextColor: { label: { en: 'Header text' }, type: 'Color', section: 'style', defaultValue: '#374151' },
         rowBgColor: { label: { en: 'Row background' }, type: 'Color', section: 'style', defaultValue: '#ffffff' },
         rowAltBgColor: { label: { en: 'Alternate group background' }, type: 'Color', section: 'style', defaultValue: '#fafbfc' },
-        rowHoverColor: { label: { en: 'Row hover' }, type: 'Color', section: 'style', defaultValue: '#eef2ff' },
-        selectedRowColor: { label: { en: 'Selected row' }, type: 'Color', section: 'style', defaultValue: '#dbeafe' },
-        selectedRowHoverColor: { label: { en: 'Selected row hover' }, type: 'Color', section: 'style', defaultValue: '#c7d2fe' },
-        activeRowColor: { label: { en: 'Active row' }, type: 'Color', section: 'style', defaultValue: '#ede9fe' },
+        rowHoverColor: { label: { en: 'Row hover' }, type: 'Color', section: 'style', defaultValue: '#e6f5fc' },
+        selectedRowColor: { label: { en: 'Selected row' }, type: 'Color', section: 'style', defaultValue: '#cceefc' },
+        selectedRowHoverColor: { label: { en: 'Selected row hover' }, type: 'Color', section: 'style', defaultValue: '#b3e0fa' },
+        activeRowColor: { label: { en: 'Active row' }, type: 'Color', section: 'style', defaultValue: '#e6f5fc' },
         borderColor: { label: { en: 'Border color' }, type: 'Color', section: 'style', defaultValue: '#e5e7eb' },
         groupSeparatorColor: { label: { en: 'Group separator' }, type: 'Color', section: 'style', defaultValue: '#d1d5db' },
 
@@ -418,7 +418,7 @@ export default {
             section: 'style',
             bindable: true,
             defaultValue: {},
-            options: { placeholder: '{ "Booked": "#dbeafe", "Confirmed": "#d1fae5" }' },
+            options: { placeholder: '{ "Booked": "#b3e0fa", "Confirmed": "#d1fae5" }' },
             /* wwEditor:start */
             bindingValidation: {
                 type: 'object',
