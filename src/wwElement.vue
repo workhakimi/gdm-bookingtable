@@ -1039,6 +1039,7 @@ export default {
         function clearFilters() {
             globalSearch.value = '';
             columnFilters.value = {};
+            columnDateFilters.value = {};
             activeFilterCol.value = null;
         }
 
@@ -1055,6 +1056,8 @@ export default {
             sortState, handleSort,
             globalSearch, columnFilters, activeFilterCol, filterPopoverInputRef,
             toggleFilterPopover, closeFilterPopover, setColumnFilter, hasActiveFilter, hasAnyFilter,
+            getDateFilterMode, getDateFilterValue, getDateFilterValueEnd,
+            setDateFilterMode, setDateFilterValue, setDateFilterValueEnd, clearDateFilter,
             currentPage, totalPages, paginationEnabled, goToPage,
             selectionEnabled, selectedIds, selectedCount,
             allVisibleSelected, someVisibleSelected,
