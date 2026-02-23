@@ -45,6 +45,7 @@ export default {
                     'rowAltBgColor',
                     'rowHoverColor',
                     'selectedRowColor',
+                    'selectedRowHoverColor',
                     'activeRowColor',
                     'borderColor',
                     'groupSeparatorColor',
@@ -63,7 +64,7 @@ export default {
             {
                 label: 'Conditional Styling',
                 isCollapsible: true,
-                properties: ['overbookedHighlight', 'statusColorMap'],
+                properties: ['indicatorBgColor', 'indicatorHoverColor', 'statusColorMap'],
             },
         ],
     },
@@ -224,6 +225,7 @@ export default {
                                         { value: 'badge', label: 'Badge' },
                                         { value: 'image', label: 'Image' },
                                         { value: 'boolean', label: 'Boolean' },
+                                        { value: 'indicator', label: 'Indicator' },
                                     ],
                                 },
                             },
@@ -316,8 +318,9 @@ export default {
         headerTextColor: { label: { en: 'Header text' }, type: 'Color', section: 'style', defaultValue: '#374151' },
         rowBgColor: { label: { en: 'Row background' }, type: 'Color', section: 'style', defaultValue: '#ffffff' },
         rowAltBgColor: { label: { en: 'Alternate group background' }, type: 'Color', section: 'style', defaultValue: '#fafbfc' },
-        rowHoverColor: { label: { en: 'Row hover' }, type: 'Color', section: 'style', defaultValue: '#f0f4ff' },
-        selectedRowColor: { label: { en: 'Selected row' }, type: 'Color', section: 'style', defaultValue: '#e0e7ff' },
+        rowHoverColor: { label: { en: 'Row hover' }, type: 'Color', section: 'style', defaultValue: '#eef2ff' },
+        selectedRowColor: { label: { en: 'Selected row' }, type: 'Color', section: 'style', defaultValue: '#dbeafe' },
+        selectedRowHoverColor: { label: { en: 'Selected row hover' }, type: 'Color', section: 'style', defaultValue: '#c7d2fe' },
         activeRowColor: { label: { en: 'Active row' }, type: 'Color', section: 'style', defaultValue: '#ede9fe' },
         borderColor: { label: { en: 'Border color' }, type: 'Color', section: 'style', defaultValue: '#e5e7eb' },
         groupSeparatorColor: { label: { en: 'Group separator' }, type: 'Color', section: 'style', defaultValue: '#d1d5db' },
@@ -375,13 +378,22 @@ export default {
             /* wwEditor:end */
         },
 
-        overbookedHighlight: {
-            label: { en: 'Overbooked highlight color' },
+        indicatorBgColor: {
+            label: { en: 'Indicator row bg' },
             type: 'Color',
             section: 'style',
             defaultValue: '#fef2f2',
             /* wwEditor:start */
-            propertyHelp: { tooltip: 'Background color for rows where overbooked = true' },
+            propertyHelp: { tooltip: 'Background color for rows that have an indicator value (Overbooked / Using Buffer)' },
+            /* wwEditor:end */
+        },
+        indicatorHoverColor: {
+            label: { en: 'Indicator row hover bg' },
+            type: 'Color',
+            section: 'style',
+            defaultValue: '#fde8e8',
+            /* wwEditor:start */
+            propertyHelp: { tooltip: 'Hover background for indicator rows' },
             /* wwEditor:end */
         },
         statusColorMap: {

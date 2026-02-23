@@ -126,6 +126,8 @@
                             class="bst-row"
                             :class="rowClasses(group, item, ii, gi)"
                             @click="handleRowClick(group, item)"
+                            @mouseenter="hoveredGroupId = group.headerId"
+                            @mouseleave="hoveredGroupId = null"
                         >
                             <td
                                 v-if="selectionEnabled && ii === 0"
@@ -173,6 +175,16 @@
                                             :style="badgeStyle(item[col.field])"
                                         >
                                             {{ formatCell(item[col.field], col) }}
+                                        </span>
+                                        <span
+                                            v-else-if="col.formatter === 'indicator'"
+                                            class="bst-indicator-text"
+                                            :class="{
+                                                'bst-indicator-overbooked': getIndicator(item) === 'overbooked',
+                                                'bst-indicator-buffer': getIndicator(item) === 'usingbuffer',
+                                            }"
+                                        >
+                                            {{ item[col.field] || '\u2014' }}
                                         </span>
                                         <span v-else class="bst-cell-text">{{ formatCell(item[col.field], col) }}</span>
                                     </template>
@@ -752,6 +764,24 @@ export default {
         // ═══════════ 13. CLASSES & STYLES ═══════════
 
         const tableWrapRef = ref(null);
+        const hoveredGroupId = ref(null);
+
+        function isGroupHovered(group) {
+            return hoveredGroupId.value != null && hoveredGroupId.value === group.headerId;
+        }
+
+        function getIndicator(item) {
+            const v = item?.indicator;
+            if (!v || typeof v !== 'string') return null;
+            const lower = v.trim().toLowerCase();
+            if (lower === 'overbooked') return 'overbooked';
+            if (lower === 'using buffer') return 'usingbuffer';
+            return null;
+        }
+
+        function hasGroupIndicator(group) {
+            return group.items.some(item => getIndicator(item) != null);
+        }
 
         const rootStyles = computed(() => {
             const s = {
@@ -759,15 +789,17 @@ export default {
                 '--bst-header-text': props.content?.headerTextColor || '#374151',
                 '--bst-row-bg': props.content?.rowBgColor || '#ffffff',
                 '--bst-row-alt-bg': props.content?.rowAltBgColor || '#fafbfc',
-                '--bst-row-hover': props.content?.rowHoverColor || '#f0f4ff',
-                '--bst-selected-bg': props.content?.selectedRowColor || '#e0e7ff',
+                '--bst-row-hover': props.content?.rowHoverColor || '#eef2ff',
+                '--bst-selected-bg': props.content?.selectedRowColor || '#dbeafe',
+                '--bst-selected-hover': props.content?.selectedRowHoverColor || '#c7d2fe',
                 '--bst-active-bg': props.content?.activeRowColor || '#ede9fe',
                 '--bst-border': props.content?.borderColor || '#e5e7eb',
                 '--bst-sep': props.content?.groupSeparatorColor || '#d1d5db',
                 '--bst-font': props.content?.fontFamily || "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
                 '--bst-font-size': props.content?.fontSize || '13px',
                 '--bst-header-fw': props.content?.headerFontWeight || '600',
-                '--bst-overbooked-bg': props.content?.overbookedHighlight || '#fef2f2',
+                '--bst-indicator-bg': props.content?.indicatorBgColor || '#fef2f2',
+                '--bst-indicator-hover': props.content?.indicatorHoverColor || '#fde8e8',
             };
             const cp = props.content?.cellPadding;
             if (cp && cp.trim()) s['--bst-cell-padding'] = cp;
@@ -786,36 +818,47 @@ export default {
         function headerTdClasses(col, group, colIndex) {
             const vis = visibleColumns.value;
             const headerAfterLine = col.source === 'header' && colIndex > 0 && vis[colIndex - 1]?.source === 'lineitem';
+            const indicator = hasGroupIndicator(group);
             return {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
+                'bst-hovered': isGroupHovered(group),
+                'bst-indicator-row': indicator,
                 'bst-header-after-line': headerAfterLine,
             };
         }
 
         function lineItemTdClasses(col, group, item) {
+            const indicator = getIndicator(item);
             return {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
-                'bst-overbooked': item.overbooked === true || item.overbooked === 'true',
+                'bst-hovered': isGroupHovered(group),
+                'bst-indicator-row': indicator != null,
             };
         }
 
         function mergedCellClasses(group) {
+            const indicator = hasGroupIndicator(group);
             return {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
+                'bst-hovered': isGroupHovered(group),
+                'bst-indicator-row': indicator,
             };
         }
 
         function rowClasses(group, item, ii, gi) {
+            const indicator = getIndicator(item);
+            const groupIndicator = hasGroupIndicator(group);
             return {
                 'bst-group-first': ii === 0,
                 'bst-group-last': ii === group.items.length - 1,
                 'bst-group-alt': gi % 2 === 1,
                 'bst-row-selected': isGroupSelected(group),
                 'bst-row-active': isGroupActive(group),
-                'bst-row-overbooked': item.overbooked === true || item.overbooked === 'true',
+                'bst-row-hovered': isGroupHovered(group),
+                'bst-row-indicator': indicator != null || groupIndicator,
                 'bst-row-empty': !!item._empty,
             };
         }
@@ -865,7 +908,7 @@ export default {
             allVisibleSelected, someVisibleSelected,
             isGroupSelected, isGroupActive, toggleGroupSelection, toggleSelectAll, handleRowClick,
             startResize, tableWrapRef,
-            formatCell, getDisplayOverride, getLineCellDisplay, badgeStyle,
+            formatCell, getDisplayOverride, getLineCellDisplay, badgeStyle, getIndicator, hoveredGroupId,
             rootStyles, thClasses, headerTdClasses, lineItemTdClasses, mergedCellClasses, rowClasses,
             clearSelection, selectAll, selectHeaders, clearFilters,
         };
@@ -1077,16 +1120,28 @@ $transition: 0.15s ease;
 
 /* ═══════════ TBODY ═══════════ */
 .bst-row {
-    transition: background $transition; background: var(--bst-row-bg);
-    &:hover { background: var(--bst-row-hover); cursor: pointer; }
+    transition: background $transition;
+    background: var(--bst-row-bg);
+    cursor: pointer;
 }
-.bst-group-alt {
-    background: var(--bst-row-alt-bg);
-    &:hover { background: var(--bst-row-hover); }
-}
-.bst-row-selected { background: var(--bst-selected-bg) !important; }
-.bst-row-active:not(.bst-row-selected) { background: var(--bst-active-bg) !important; }
-.bst-row-overbooked { background: var(--bst-overbooked-bg) !important; }
+
+/* Group hover: all rows in the group light up */
+.bst-row-hovered { background: var(--bst-row-hover); }
+
+/* Selected: light blue */
+.bst-row-selected { background: var(--bst-selected-bg); }
+/* Selected + hovered: slightly darker */
+.bst-row-selected.bst-row-hovered { background: var(--bst-selected-hover); }
+
+/* Indicator rows (overbooked / using buffer): light red bg */
+.bst-row-indicator:not(.bst-row-selected) { background: var(--bst-indicator-bg); }
+/* Indicator + hovered: slightly darker red */
+.bst-row-indicator.bst-row-hovered:not(.bst-row-selected) { background: var(--bst-indicator-hover); }
+/* Indicator + selected: blue takes priority */
+.bst-row-indicator.bst-row-selected { background: var(--bst-selected-bg); }
+.bst-row-indicator.bst-row-selected.bst-row-hovered { background: var(--bst-selected-hover); }
+
+.bst-row-active:not(.bst-row-selected) { background: var(--bst-active-bg); }
 
 /* ═══════════ TD ═══════════ */
 .bst-td {
@@ -1108,6 +1163,11 @@ $transition: 0.15s ease;
 .bst-header-after-line.bst-td-header {
     border-left: 1px solid var(--bst-border);
 }
+
+/* ═══════════ INDICATOR TEXT ═══════════ */
+.bst-indicator-text { font-weight: 600; font-size: 12px; }
+.bst-indicator-overbooked { color: #dc2626; }
+.bst-indicator-buffer { color: #d97706; }
 
 .bst-group-first .bst-td { border-top: 2px solid var(--bst-sep); }
 tbody tr:first-child.bst-group-first .bst-td { border-top: none; }
