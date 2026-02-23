@@ -242,6 +242,14 @@ export default {
                                 propertyHelp: { tooltip: 'Show filter (search) for this column in the header' },
                                 /* wwEditor:end */
                             },
+                            sortable: {
+                                label: { en: 'Sortable' },
+                                type: 'OnOff',
+                                defaultValue: true,
+                                /* wwEditor:start */
+                                propertyHelp: { tooltip: 'Allow sorting by this column when clicking the header' },
+                                /* wwEditor:end */
+                            },
                             filterByDisplayValue: {
                                 label: { en: 'Filter by display value' },
                                 type: 'OnOff',
@@ -285,7 +293,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of column configs: { source, field, title?, width?, formatter?, visible?, filterable?, filterByDisplayValue?, displayValueFormula? }',
+                                tooltip: 'Array of column configs: { source, field, title?, width?, formatter?, visible?, filterable?, sortable?, filterByDisplayValue?, displayValueFormula? }',
             },
             /* wwEditor:end */
         },

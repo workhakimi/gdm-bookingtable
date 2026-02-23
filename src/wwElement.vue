@@ -61,15 +61,21 @@
                             :class="thClasses(col, colIndex)"
                         >
                             <div class="bst-th-inner">
-                                <div class="bst-th-content bst-sortable" @click="handleSort(col)">
+                                <div
+                                    class="bst-th-content"
+                                    :class="{ 'bst-sortable': col.sortable !== false }"
+                                    @click="col.sortable !== false && handleSort(col)"
+                                >
                                     <span class="bst-th-label">{{ col.title?.trim() || col.field }}</span>
-                                    <span v-if="sortState.field === col._sortKey" class="bst-sort-icon bst-sort-active">
-                                        <svg v-if="sortState.direction === 'asc'" viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 3l5 6H3z"/></svg>
-                                        <svg v-else viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 13l5-6H3z"/></svg>
-                                    </span>
-                                    <span v-else class="bst-sort-icon bst-sort-hint">
-                                        <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M8 4l3 3.5H5z"/><path d="M8 12l3-3.5H5z"/></svg>
-                                    </span>
+                                    <template v-if="col.sortable !== false">
+                                        <span v-if="sortState.field === col._sortKey" class="bst-sort-icon bst-sort-active">
+                                            <svg v-if="sortState.direction === 'asc'" viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 3l5 6H3z"/></svg>
+                                            <svg v-else viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 13l5-6H3z"/></svg>
+                                        </span>
+                                        <span v-else class="bst-sort-icon bst-sort-hint">
+                                            <svg viewBox="0 0 16 16" fill="currentColor" width="10" height="10"><path d="M8 4l3 3.5H5z"/><path d="M8 12l3-3.5H5z"/></svg>
+                                        </span>
+                                    </template>
                                 </div>
                                 <button
                                     v-if="col.filterable !== false"
@@ -497,6 +503,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
+            if (col.sortable === false) return;
             closeFilterPopover();
             const key = col._sortKey;
 
@@ -527,6 +534,9 @@ export default {
         const sortedGroups = computed(() => {
             const s = sortState.value;
             if (!s.field) return groups.value;
+            const sortCol = visibleColumns.value.find(c => c._sortKey === s.field);
+            if (sortCol && sortCol.sortable === false) return groups.value;
+
             const parts = s.field.split('.');
             const source = parts[0];
             const field = parts.slice(1).join('.');
@@ -1336,6 +1346,9 @@ $transition: 0.15s ease;
 .bst-row-indicator.bst-row-selected.bst-row-hovered { background: var(--bst-selected-hover); }
 
 .bst-row-active:not(.bst-row-selected) { background: var(--bst-active-bg); }
+/* Indicator rows keep light red even when active (e.g. after select then deselect) */
+.bst-row-indicator.bst-row-active:not(.bst-row-selected) { background: var(--bst-indicator-bg); }
+.bst-row-indicator.bst-row-active.bst-row-hovered:not(.bst-row-selected) { background: var(--bst-indicator-hover); }
 
 /* ═══════════ TD ═══════════ */
 .bst-td {
