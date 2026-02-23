@@ -254,9 +254,11 @@ export default {
                                 label: { en: 'Display value override' },
                                 type: 'Formula',
                                 /* wwEditor:start */
-                                propertyHelp: { tooltip: 'Optional formula to override the cell display. Context is the current row (header or line item). Use context fields or mapping to compute the displayed value.' },
+                                propertyHelp: { tooltip: 'Optional formula to override the cell display. Context depends on Source: for Header columns use the header row; for Line Item columns use the line item (and context.header for the parent header).' },
                                 /* wwEditor:end */
-                                options: (content) => {
+                                options: (content, sidePanelContent, boundProperties, wwProps, array) => {
+                                    const col = array?.item;
+                                    const source = col?.source;
                                     try {
                                         const headers = typeof wwLib !== 'undefined' && wwLib?.wwUtils?.getDataFromCollection
                                             ? (wwLib.wwUtils.getDataFromCollection(content?.headerData) ?? [])
@@ -264,8 +266,13 @@ export default {
                                         const lines = typeof wwLib !== 'undefined' && wwLib?.wwUtils?.getDataFromCollection
                                             ? (wwLib.wwUtils.getDataFromCollection(content?.lineItemData) ?? [])
                                             : [];
-                                        const first = (Array.isArray(headers) && headers[0]) || (Array.isArray(lines) && lines[0]) || {};
-                                        return { template: first };
+                                        if (source === 'lineitem') {
+                                            const firstLine = Array.isArray(lines) && lines[0];
+                                            const firstHeader = Array.isArray(headers) && headers[0];
+                                            return { template: firstLine ? { ...firstLine, header: firstHeader } : firstHeader || {} };
+                                        }
+                                        const firstHeader = Array.isArray(headers) && headers[0];
+                                        return { template: firstHeader || (Array.isArray(lines) && lines[0]) || {} };
                                     } catch (_) {
                                         return { template: {} };
                                     }
