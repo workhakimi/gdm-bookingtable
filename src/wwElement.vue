@@ -199,7 +199,14 @@
                                     class="bst-td bst-td-header"
                                     :class="headerTdClasses(col, group, colIndex)"
                                 >
-                                    <span class="bst-cell-text">{{ getDisplayOverride(col, group.header) ?? formatCell(group.header[col.field], col) }}</span>
+                                    <template v-if="col.formatter === 'image' && (getDisplayOverride(col, group.header) ?? group.header[col.field])">
+                                        <img
+                                            :src="getDisplayOverride(col, group.header) ?? group.header[col.field]"
+                                            class="bst-cell-img"
+                                            loading="lazy"
+                                        />
+                                    </template>
+                                    <span v-else class="bst-cell-text">{{ getDisplayOverride(col, group.header) ?? formatCell(group.header[col.field], col) }}</span>
                                 </td>
 
                                 <td
@@ -208,7 +215,20 @@
                                     :class="lineItemTdClasses(col, group, item)"
                                 >
                                     <template v-if="getLineCellDisplay(col, group, item) !== null">
-                                        <span class="bst-cell-text">{{ getLineCellDisplay(col, group, item) }}</span>
+                                        <img
+                                            v-if="col.formatter === 'image' && getLineCellDisplay(col, group, item)"
+                                            :src="getLineCellDisplay(col, group, item)"
+                                            class="bst-cell-img"
+                                            loading="lazy"
+                                        />
+                                        <span
+                                            v-else-if="col.formatter === 'badge'"
+                                            class="bst-badge"
+                                            :style="badgeStyle(getLineCellDisplay(col, group, item))"
+                                        >
+                                            {{ getLineCellDisplay(col, group, item) }}
+                                        </span>
+                                        <span v-else class="bst-cell-text">{{ getLineCellDisplay(col, group, item) }}</span>
                                     </template>
                                     <template v-else>
                                         <img
