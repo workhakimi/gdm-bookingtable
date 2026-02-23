@@ -779,8 +779,8 @@ export default {
             return null;
         }
 
-        function hasGroupIndicator(group) {
-            return group.items.some(item => getIndicator(item) != null);
+        function hasGroupOverbooked(group) {
+            return group.items.some(item => getIndicator(item) === 'overbooked');
         }
 
         const rootStyles = computed(() => {
@@ -818,39 +818,38 @@ export default {
         function headerTdClasses(col, group, colIndex) {
             const vis = visibleColumns.value;
             const headerAfterLine = col.source === 'header' && colIndex > 0 && vis[colIndex - 1]?.source === 'lineitem';
-            const indicator = hasGroupIndicator(group);
+            const overbooked = hasGroupOverbooked(group);
             return {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
                 'bst-hovered': isGroupHovered(group),
-                'bst-indicator-row': indicator,
+                'bst-indicator-row': overbooked,
                 'bst-header-after-line': headerAfterLine,
             };
         }
 
         function lineItemTdClasses(col, group, item) {
-            const indicator = getIndicator(item);
+            const overbooked = hasGroupOverbooked(group);
             return {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
                 'bst-hovered': isGroupHovered(group),
-                'bst-indicator-row': indicator != null,
+                'bst-indicator-row': overbooked,
             };
         }
 
         function mergedCellClasses(group) {
-            const indicator = hasGroupIndicator(group);
+            const overbooked = hasGroupOverbooked(group);
             return {
                 'bst-selected': isGroupSelected(group),
                 'bst-active': isGroupActive(group),
                 'bst-hovered': isGroupHovered(group),
-                'bst-indicator-row': indicator,
+                'bst-indicator-row': overbooked,
             };
         }
 
         function rowClasses(group, item, ii, gi) {
-            const indicator = getIndicator(item);
-            const groupIndicator = hasGroupIndicator(group);
+            const overbooked = hasGroupOverbooked(group);
             return {
                 'bst-group-first': ii === 0,
                 'bst-group-last': ii === group.items.length - 1,
@@ -858,7 +857,7 @@ export default {
                 'bst-row-selected': isGroupSelected(group),
                 'bst-row-active': isGroupActive(group),
                 'bst-row-hovered': isGroupHovered(group),
-                'bst-row-indicator': indicator != null || groupIndicator,
+                'bst-row-indicator': overbooked,
                 'bst-row-empty': !!item._empty,
             };
         }
