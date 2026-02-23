@@ -903,6 +903,9 @@ export default {
             if (activeHeaderVar) activeHeaderVar.setValue(group ? stripInternalFields(group.header) : null);
         });
 
+        /* Keep selected values realtime: when source data updates, refresh selection variables with current objects */
+        watch(groups, () => { emitSelectionChange(); }, { deep: true });
+
         // ═══════════ 12. FORMATTING ═══════════
 
         function formatCell(value, col) {
