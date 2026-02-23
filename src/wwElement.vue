@@ -72,6 +72,7 @@
                                     </span>
                                 </div>
                                 <button
+                                    v-if="col.filterable !== false"
                                     type="button"
                                     class="bst-col-filter-btn"
                                     :class="{ 'bst-col-filter-btn-active': hasActiveFilter(col) }"
@@ -86,7 +87,7 @@
 
                             <!-- Per-column filter popover -->
                             <div
-                                v-if="activeFilterCol === col._uid"
+                                v-if="col.filterable !== false && activeFilterCol === col._uid"
                                 class="bst-col-filter-popover"
                                 @click.stop
                             >
@@ -539,7 +540,7 @@ export default {
                 let headerMatchesGlobal = false;
 
                 for (const col of rawColumns.value) {
-                    if (col.source !== 'header') continue;
+                    if (col.source !== 'header' || col.filterable === false) continue;
                     const val = group.header[col.field];
                     const fk = col._filterKey;
                     if (colFilts[fk] && colFilts[fk].trim()) {
@@ -550,7 +551,7 @@ export default {
 
                 if (!headerMatchesCol) return false;
 
-                const liCols = rawColumns.value.filter(c => c.source === 'lineitem');
+                const liCols = rawColumns.value.filter(c => c.source === 'lineitem' && c.filterable !== false);
                 const anyItemMatches = group.items.some(item => {
                     if (item._empty) return false;
                     let itemMatchesCol = true;
