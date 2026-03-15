@@ -939,9 +939,20 @@ export default {
 
         const statusColorMap = computed(() => props.content?.statusColorMap || {});
 
+        const STATUS_DEFAULTS = {
+            'Booked': { bg: '#dbeafe', color: '#1e40af' },
+            'Issue Raised': { bg: '#fee2e2', color: '#991b1b' },
+            'Processing': { bg: '#fef9c3', color: '#854d0e' },
+            'Delivered to Production': { bg: '#f3e8ff', color: '#6b21a8' },
+            'Delivered to Client': { bg: '#dcfce7', color: '#166534' },
+            'Released': { bg: '#f3f4f6', color: '#6b7280' },
+        };
+
         function badgeStyle(value) {
             const bg = statusColorMap.value[value];
             if (bg) return { background: bg, color: textColorForBg(bg) };
+            const def = STATUS_DEFAULTS[value];
+            if (def) return { background: def.bg, color: def.color };
             if (value === true || value === 'true') return { background: '#fee2e2', color: '#991b1b' };
             if (value === false || value === 'false') return { background: '#f3f4f6', color: '#374151' };
             return {};

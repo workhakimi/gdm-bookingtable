@@ -432,8 +432,15 @@ export default {
             type: 'RawObject',
             section: 'style',
             bindable: true,
-            defaultValue: {},
-            options: { placeholder: '{ "Booked": "#b3e0fa", "Confirmed": "#d1fae5" }' },
+            defaultValue: {
+                'Booked': '#dbeafe',
+                'Issue Raised': '#fee2e2',
+                'Processing': '#fef9c3',
+                'Delivered to Production': '#f3e8ff',
+                'Delivered to Client': '#dcfce7',
+                'Released': '#f3f4f6',
+            },
+            options: { placeholder: '{ "Booked": "#dbeafe", "Released": "#f3f4f6" }' },
             /* wwEditor:start */
             bindingValidation: {
                 type: 'object',
