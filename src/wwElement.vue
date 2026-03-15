@@ -150,7 +150,7 @@
                             </td>
 
                             <!-- Line-item: Status -->
-                            <td>
+                            <td class="bst-before-merged">
                                 <span v-if="!item._empty && item.status" class="bst-badge" :style="badgeStyle(item.status)">
                                     {{ item.status }}
                                 </span>
@@ -163,7 +163,7 @@
                             </td>
 
                             <!-- Line-item: Indicator -->
-                            <td>
+                            <td class="bst-after-merged">
                                 <span v-if="!item._empty && item.indicator" class="bst-indicator" :class="indicatorClass(item.indicator)">
                                     {{ item.indicator }}
                                 </span>
@@ -927,6 +927,15 @@ thead {
 
 .bst-merged {
     border-right: 1px solid #f0f0f0;
+    border-left: 1px solid #f0f0f0;
+}
+
+.bst-before-merged {
+    border-right: 1px solid #f0f0f0;
+}
+
+.bst-after-merged {
+    border-left: 1px solid #f0f0f0;
 }
 
 .bst-muted { color: #d1d5db; }
