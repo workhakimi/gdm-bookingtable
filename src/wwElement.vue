@@ -1,5 +1,5 @@
 <template>
-    <div class="bst" :style="rootVars" @click="showStatusFilter = false">
+    <div class="bst" :style="rootVars" @click="activeFilter = null">
         <!-- Search bar -->
         <div class="bst-bar">
             <div class="bst-search">
@@ -46,14 +46,34 @@
                                 <span v-if="col.sortField" class="bst-sort-icon">{{ sortIcon(col.sortField) }}</span>
                             </template>
 
-                            <!-- Status filter button -->
+                            <!-- Filter buttons for status, pic, indicator -->
                             <button
                                 v-if="col.key === 'status'"
-                                ref="filterBtn"
+                                ref="statusFilterBtn"
                                 class="bst-filter-btn"
                                 :class="{ 'bst-filter-btn-active': hasStatusFilter }"
-                                @click.stop="toggleFilterDropdown"
+                                @click.stop="openFilter('status', $event)"
                                 title="Filter by status"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                            </button>
+                            <button
+                                v-if="col.key === 'pic'"
+                                ref="picFilterBtn"
+                                class="bst-filter-btn"
+                                :class="{ 'bst-filter-btn-active': hasPicFilter }"
+                                @click.stop="openFilter('pic', $event)"
+                                title="Filter by PIC"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                            </button>
+                            <button
+                                v-if="col.key === 'indicator'"
+                                ref="indicatorFilterBtn"
+                                class="bst-filter-btn"
+                                :class="{ 'bst-filter-btn-active': hasIndicatorFilter }"
+                                @click.stop="openFilter('indicator', $event)"
+                                title="Filter by indicator"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                             </button>
@@ -155,7 +175,7 @@
 
                             <!-- Line-item: Indicator -->
                             <td class="bst-after-merged">
-                                <span v-if="!item._empty && item.indicator" class="bst-indicator" :class="indicatorClass(item.indicator)">
+                                <span v-if="!item._empty && item.indicator" class="bst-badge" :style="indicatorBadgeStyle(item.indicator)">
                                     {{ item.indicator }}
                                 </span>
                             </td>
@@ -165,14 +185,38 @@
             </table>
         </div>
 
-        <!-- Status filter dropdown (outside scroll container to avoid clipping) -->
-        <div v-if="showStatusFilter" class="bst-filter-drop" :style="filterDropStyle" @click.stop>
-            <div v-for="s in STATUS_OPTIONS" :key="s" class="bst-filter-opt" @click.stop="toggleStatusFilter(s)">
+        <!-- Filter dropdowns (outside scroll container to avoid clipping) -->
+
+        <!-- Status filter -->
+        <div v-if="activeFilter === 'status'" class="bst-filter-drop" :style="filterDropStyle" @click.stop>
+            <div v-for="s in STATUS_OPTIONS" :key="s" class="bst-filter-opt" @click.stop="toggleHidden('status', s)">
                 <input type="checkbox" :checked="isStatusVisible(s)" class="bst-filter-chk" tabindex="-1" />
                 <span class="bst-badge" :style="badgeStyle(s)">{{ s }}</span>
             </div>
             <div class="bst-filter-actions">
-                <button @click="clearStatusFilter">Clear</button>
+                <button @click="clearFilter('status')">Clear</button>
+            </div>
+        </div>
+
+        <!-- PIC filter -->
+        <div v-if="activeFilter === 'pic'" class="bst-filter-drop" :style="filterDropStyle" @click.stop>
+            <div v-for="p in picOptions" :key="p.id" class="bst-filter-opt" @click.stop="toggleHidden('pic', p.id)">
+                <input type="checkbox" :checked="isPicVisible(p.id)" class="bst-filter-chk" tabindex="-1" />
+                <span>{{ p.name }}</span>
+            </div>
+            <div class="bst-filter-actions">
+                <button @click="clearFilter('pic')">Clear</button>
+            </div>
+        </div>
+
+        <!-- Indicator filter -->
+        <div v-if="activeFilter === 'indicator'" class="bst-filter-drop" :style="filterDropStyle" @click.stop>
+            <div v-for="ind in INDICATOR_OPTIONS" :key="ind.value" class="bst-filter-opt" @click.stop="toggleHidden('indicator', ind.value)">
+                <input type="checkbox" :checked="isIndicatorVisible(ind.value)" class="bst-filter-chk" tabindex="-1" />
+                <span class="bst-badge" :style="indicatorBadgeStyle(ind.value)">{{ ind.label }}</span>
+            </div>
+            <div class="bst-filter-actions">
+                <button @click="clearFilter('indicator')">Clear</button>
             </div>
         </div>
     </div>
@@ -446,27 +490,45 @@ export default {
             });
         });
 
-        // ── Status filter ──
+        // ── Filters (status, pic, indicator) ──
 
         const STATUS_OPTIONS = ['Released', 'Issue Raised', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'];
-        const showStatusFilter = ref(false);
-        // hiddenStatuses: statuses to HIDE. Default: Released is hidden.
-        const hiddenStatuses = ref(new Set(['Released']));
-        const filterBtn = ref(null);
+        const INDICATOR_OPTIONS = [
+            { value: 'Overbooked', label: 'Overbooked', cls: 'bst-ind-over' },
+            { value: 'Using Buffer', label: 'Using Buffer', cls: 'bst-ind-buffer' },
+        ];
+
+        const activeFilter = ref(null); // 'status' | 'pic' | 'indicator' | null
         const filterDropPos = ref({ top: 0, left: 0 });
 
-        function updateFilterPos() {
-            const btn = Array.isArray(filterBtn.value) ? filterBtn.value[0] : filterBtn.value;
-            if (!btn) return;
-            const rect = btn.getBoundingClientRect();
-            filterDropPos.value = { top: rect.bottom + 2, left: rect.left };
+        // Hidden sets
+        const hiddenStatuses = ref(new Set(['Released']));
+        const hiddenPics = ref(new Set());
+        const hiddenIndicators = ref(new Set());
+
+        // Refs for filter buttons
+        const statusFilterBtn = ref(null);
+        const picFilterBtn = ref(null);
+        const indicatorFilterBtn = ref(null);
+
+        function getFilterBtn(type) {
+            const map = { status: statusFilterBtn, pic: picFilterBtn, indicator: indicatorFilterBtn };
+            const val = map[type]?.value;
+            return Array.isArray(val) ? val[0] : val;
         }
 
-        function toggleFilterDropdown() {
-            showStatusFilter.value = !showStatusFilter.value;
-            if (showStatusFilter.value) {
-                nextTick(updateFilterPos);
+        function openFilter(type, e) {
+            if (activeFilter.value === type) {
+                activeFilter.value = null;
+                return;
             }
+            activeFilter.value = type;
+            nextTick(() => {
+                const btn = getFilterBtn(type);
+                if (!btn) return;
+                const rect = btn.getBoundingClientRect();
+                filterDropPos.value = { top: rect.bottom + 2, left: rect.left };
+            });
         }
 
         const filterDropStyle = computed(() => ({
@@ -474,25 +536,41 @@ export default {
             left: filterDropPos.value.left + 'px',
         }));
 
-        const hasStatusFilter = computed(() => hiddenStatuses.value.size > 0);
-
-        function isStatusVisible(s) {
-            return !hiddenStatuses.value.has(s);
-        }
-
-        function toggleStatusFilter(s) {
-            const next = new Set(hiddenStatuses.value);
-            if (next.has(s)) {
-                next.delete(s); // unhide → show
-            } else {
-                next.add(s); // hide
+        // PIC options: derived from data
+        const picOptions = computed(() => {
+            const seen = new Set();
+            const result = [];
+            for (const h of headers.value) {
+                const id = h.pic_id;
+                if (id && !seen.has(id)) {
+                    seen.add(id);
+                    result.push({ id, name: picName(id) });
+                }
             }
-            hiddenStatuses.value = next;
+            result.sort((a, b) => a.name.localeCompare(b.name));
+            return result;
+        });
+
+        const hasStatusFilter = computed(() => hiddenStatuses.value.size > 0);
+        const hasPicFilter = computed(() => hiddenPics.value.size > 0);
+        const hasIndicatorFilter = computed(() => hiddenIndicators.value.size > 0);
+
+        function isStatusVisible(s) { return !hiddenStatuses.value.has(s); }
+        function isPicVisible(id) { return !hiddenPics.value.has(id); }
+        function isIndicatorVisible(v) { return !hiddenIndicators.value.has(v); }
+
+        function toggleHidden(type, val) {
+            const map = { status: hiddenStatuses, pic: hiddenPics, indicator: hiddenIndicators };
+            const target = map[type];
+            const next = new Set(target.value);
+            if (next.has(val)) { next.delete(val); } else { next.add(val); }
+            target.value = next;
         }
 
-        function clearStatusFilter() {
-            hiddenStatuses.value = new Set();
-            showStatusFilter.value = false;
+        function clearFilter(type) {
+            const map = { status: hiddenStatuses, pic: hiddenPics, indicator: hiddenIndicators };
+            map[type].value = new Set();
+            activeFilter.value = null;
         }
 
         // ── Search ──
@@ -502,6 +580,12 @@ export default {
         const filteredGroups = computed(() => {
             let result = sortedGroups.value;
 
+            // PIC filter: hide entire groups by pic_id
+            if (hiddenPics.value.size > 0) {
+                const hidden = hiddenPics.value;
+                result = result.filter(g => !hidden.has(g.header.pic_id));
+            }
+
             // Status filter: hide individual line items whose status is hidden
             if (hiddenStatuses.value.size > 0) {
                 const hidden = hiddenStatuses.value;
@@ -509,6 +593,19 @@ export default {
                     .map(g => {
                         if (g.itemCount === 0) return null;
                         const filtered = g.items.filter(li => !hidden.has(li.status));
+                        if (filtered.length === 0) return null;
+                        return { ...g, items: filtered, displayItems: filtered, itemCount: filtered.length };
+                    })
+                    .filter(Boolean);
+            }
+
+            // Indicator filter: hide individual line items whose indicator is hidden
+            if (hiddenIndicators.value.size > 0) {
+                const hidden = hiddenIndicators.value;
+                result = result
+                    .map(g => {
+                        if (g.itemCount === 0) return g;
+                        const filtered = g.items.filter(li => !li.indicator || !hidden.has(li.indicator));
                         if (filtered.length === 0) return null;
                         return { ...g, items: filtered, displayItems: filtered, itemCount: filtered.length };
                     })
@@ -635,12 +732,16 @@ export default {
             return { background: '#f3f4f6', color: '#374151' };
         }
 
-        function indicatorClass(indicator) {
-            if (!indicator) return '';
-            const lower = indicator.trim().toLowerCase();
-            if (lower === 'overbooked') return 'bst-ind-over';
-            if (lower === 'using buffer') return 'bst-ind-buffer';
-            return '';
+        const INDICATOR_COLORS = {
+            'Overbooked': { bg: '#fee2e2', color: '#dc2626' },
+            'Using Buffer': { bg: '#fff7ed', color: '#ea580c' },
+        };
+
+        function indicatorBadgeStyle(indicator) {
+            if (!indicator) return {};
+            const def = INDICATOR_COLORS[indicator];
+            if (def) return { background: def.bg, color: def.color };
+            return { background: '#f3f4f6', color: '#374151' };
         }
 
         // ── Root CSS vars ──
@@ -694,14 +795,17 @@ export default {
             columns, getColWidth, startResize,
             filteredGroups, totalItems,
             search,
-            STATUS_OPTIONS, showStatusFilter, hasStatusFilter,
-            filterBtn, filterDropStyle, toggleFilterDropdown,
-            isStatusVisible, toggleStatusFilter, clearStatusFilter,
+            STATUS_OPTIONS, INDICATOR_OPTIONS,
+            activeFilter, filterDropStyle, openFilter,
+            statusFilterBtn, picFilterBtn, indicatorFilterBtn,
+            hasStatusFilter, hasPicFilter, hasIndicatorFilter,
+            isStatusVisible, isPicVisible, isIndicatorVisible,
+            toggleHidden, clearFilter, picOptions,
             toggleSort, sortIcon,
             selectedIds, activeId, isSelected,
             toggleSelect, toggleSelectAll, allSelected, someSelected,
             handleRowClick,
-            picName, skuImage, formatDate, badgeStyle, indicatorClass,
+            picName, skuImage, formatDate, badgeStyle, indicatorBadgeStyle,
             rootVars,
             clearSelection, selectAll, selectHeaders,
         };
