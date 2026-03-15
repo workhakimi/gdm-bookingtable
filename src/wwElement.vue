@@ -306,7 +306,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
 function normalizeStr(v) {
     return v == null ? '' : String(v).toLowerCase().trim();
@@ -375,16 +375,31 @@ export default {
             if (f?.resolveMappingFormula) resolveMappingFormula = f.resolveMappingFormula;
         } catch (_) { /* will be available on re-mount */ }
 
+        /* Reactivity trigger — forces computeds to re-evaluate after mount */
+        const isMounted = ref(false);
+        onMounted(() => { nextTick(() => { isMounted.value = true; }); });
+
+        /* Safe data resolver — catches errors from unready collections */
+        function safeGetData(binding) {
+            try {
+                return wwLib.wwUtils.getDataFromCollection(binding) || [];
+            } catch (_) {
+                return [];
+            }
+        }
+
         // ═══════════ 1. RESOLVE COLLECTIONS ═══════════
 
         const headers = computed(() => {
+            void isMounted.value; // re-evaluate after mount
             const raw = props.content?.headerData;
-            return (raw ? wwLib.wwUtils.getDataFromCollection(raw) : null) || [];
+            return raw ? safeGetData(raw) : [];
         });
 
         const lineItems = computed(() => {
+            void isMounted.value; // re-evaluate after mount
             const raw = props.content?.lineItemData;
-            return (raw ? wwLib.wwUtils.getDataFromCollection(raw) : null) || [];
+            return raw ? safeGetData(raw) : [];
         });
 
         // ═══════════ 2. RELATIONSHIP KEYS ═══════════
