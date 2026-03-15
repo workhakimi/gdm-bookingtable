@@ -464,7 +464,15 @@ export default {
 
         // ═══════════ 6. COLUMN WIDTHS (resizable) ═══════════
 
-        const columnWidthOverrides = ref({});
+        const COL_WIDTHS_KEY = 'bst_col_widths_' + props.uid;
+        function loadColWidths() {
+            try { return JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || '{}'); } catch { return {}; }
+        }
+        function saveColWidths(map) {
+            try { localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(map)); } catch { /* storage full */ }
+        }
+
+        const columnWidthOverrides = ref(loadColWidths());
 
         function getColWidth(col) {
             return columnWidthOverrides.value[col._uid] || col.width || 150;
@@ -488,6 +496,7 @@ export default {
             };
         }
         function onResizeEnd() {
+            if (resizing) saveColWidths(columnWidthOverrides.value);
             resizing = null;
             document.removeEventListener('mousemove', onResizeMove);
             document.removeEventListener('mouseup', onResizeEnd);
@@ -625,7 +634,8 @@ export default {
             } else {
                 activeFilterCol.value = col._uid;
                 nextTick(() => {
-                    const el = document.querySelector('.bst-col-filter-popover .bst-col-filter-input, .bst-col-filter-popover .bst-filter-date-mode');
+                    const inputs = filterPopoverInputRef.value;
+                    const el = Array.isArray(inputs) ? inputs[0] : inputs;
                     if (el) el.focus();
                 });
             }
