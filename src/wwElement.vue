@@ -450,13 +450,14 @@ export default {
 
         const STATUS_OPTIONS = ['Released', 'Issue Raised', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'];
         const showStatusFilter = ref(false);
-        const statusFilter = ref(new Set()); // empty = show all
+        const statusFilter = ref(new Set(['Issue Raised', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'])); // default: all except Released
         const filterBtn = ref(null);
         const filterDrop = ref(null);
         const filterDropPos = ref({ top: 0, left: 0 });
 
         function updateFilterPos() {
-            const btn = filterBtn.value;
+            // ref inside v-for returns an array
+            const btn = Array.isArray(filterBtn.value) ? filterBtn.value[0] : filterBtn.value;
             if (!btn) return;
             const rect = btn.getBoundingClientRect();
             filterDropPos.value = { top: rect.bottom + 2, left: rect.left };
