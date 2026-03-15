@@ -11,7 +11,7 @@ export default {
             {
                 label: 'Display',
                 isCollapsible: true,
-                properties: ['tableMaxHeight'],
+                properties: ['tableMaxHeight', 'columnWidths'],
             },
         ],
         customStylePropertiesOrder: [
@@ -25,7 +25,6 @@ export default {
                     'rowAltBgColor',
                     'rowHoverColor',
                     'selectedRowColor',
-                    'activeRowColor',
                     'borderColor',
                     'statusColorMap',
                 ],
@@ -132,12 +131,33 @@ export default {
             defaultValue: '600px',
             options: { placeholder: '600px or 80vh' },
         },
+        columnWidths: {
+            label: { en: 'Default column widths (JSON)' },
+            type: 'RawObject',
+            section: 'settings',
+            bindable: false,
+            defaultValue: {
+                bn: 100,
+                pic: 120,
+                title: 180,
+                sku: 160,
+                qty: 55,
+                status: 120,
+                updated: 110,
+                indicator: 100,
+            },
+            options: { placeholder: '{ "bn": 100, "pic": 120, "title": 180 }' },
+            /* wwEditor:start */
+            propertyHelp: { tooltip: 'Default pixel widths per column. Keys: bn, pic, title, sku, qty, status, updated, indicator. Users can also drag column edges to resize.' },
+            /* wwEditor:end */
+        },
 
         headerBgColor: { label: { en: 'Header background' }, type: 'Color', section: 'style', defaultValue: '#f8f9fa' },
         headerTextColor: { label: { en: 'Header text' }, type: 'Color', section: 'style', defaultValue: '#374151' },
         rowBgColor: { label: { en: 'Row background' }, type: 'Color', section: 'style', defaultValue: '#ffffff' },
         rowAltBgColor: { label: { en: 'Alternate group bg' }, type: 'Color', section: 'style', defaultValue: '#fafbfc' },
         rowHoverColor: { label: { en: 'Row hover' }, type: 'Color', section: 'style', defaultValue: '#f0f7ff' },
+        selectedRowColor: { label: { en: 'Selected row (checkbox)' }, type: 'Color', section: 'style', defaultValue: '#eff6ff' },
         borderColor: { label: { en: 'Border color' }, type: 'Color', section: 'style', defaultValue: '#e5e7eb' },
         statusColorMap: {
             label: { en: 'Status color map (JSON)' },

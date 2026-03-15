@@ -23,51 +23,42 @@
         <!-- Table -->
         <div class="bst-wrap" :style="{ maxHeight: content.tableMaxHeight || '600px' }">
             <table class="bst-table">
+                <colgroup>
+                    <col v-for="col in columns" :key="col.key" :style="{ width: getColWidth(col) + 'px' }" />
+                </colgroup>
                 <thead>
                     <tr>
-                        <th class="bst-chk-col">
-                            <input
-                                type="checkbox"
-                                :checked="allSelected"
-                                :indeterminate.prop="someSelected && !allSelected"
-                                @change="toggleSelectAll"
-                            />
-                        </th>
-                        <th class="bst-sortable" @click="toggleSort('bookingnumber')">
-                            BN <span class="bst-sort-icon">{{ sortIcon('bookingnumber') }}</span>
-                        </th>
-                        <th class="bst-sortable" @click="toggleSort('pic')">
-                            PIC <span class="bst-sort-icon">{{ sortIcon('pic') }}</span>
-                        </th>
-                        <th class="bst-sortable" @click="toggleSort('bookingtitle')">
-                            Title <span class="bst-sort-icon">{{ sortIcon('bookingtitle') }}</span>
-                        </th>
-                        <th class="bst-img-col"></th>
-                        <th class="bst-sortable" @click="toggleSort('sku')">
-                            SKU <span class="bst-sort-icon">{{ sortIcon('sku') }}</span>
-                        </th>
-                        <th class="bst-num-col bst-sortable" @click="toggleSort('quantity')">
-                            Qty <span class="bst-sort-icon">{{ sortIcon('quantity') }}</span>
-                        </th>
-                        <th class="bst-sortable" @click="toggleSort('status')">
-                            Status <span class="bst-sort-icon">{{ sortIcon('status') }}</span>
-                        </th>
-                        <th class="bst-sortable" @click="toggleSort('created_at')">
-                            Updated <span class="bst-sort-icon">{{ sortIcon('created_at') }}</span>
-                        </th>
-                        <th>Indicator</th>
-                        <th class="bst-num-col bst-sortable" @click="toggleSort('unique_skus')">
-                            SKUs <span class="bst-sort-icon">{{ sortIcon('unique_skus') }}</span>
-                        </th>
-                        <th class="bst-num-col bst-sortable" @click="toggleSort('total_quantity')">
-                            Sum <span class="bst-sort-icon">{{ sortIcon('total_quantity') }}</span>
+                        <th v-for="(col, ci) in columns" :key="col.key"
+                            :class="[col.thClass, { 'bst-sortable': col.sortField }]"
+                            @click="col.sortField && toggleSort(col.sortField)"
+                        >
+                            <!-- Checkbox header -->
+                            <template v-if="col.key === 'checkbox'">
+                                <input
+                                    type="checkbox"
+                                    :checked="allSelected"
+                                    :indeterminate.prop="someSelected && !allSelected"
+                                    @change="toggleSelectAll"
+                                />
+                            </template>
+                            <template v-else-if="col.label">
+                                {{ col.label }}
+                                <span v-if="col.sortField" class="bst-sort-icon">{{ sortIcon(col.sortField) }}</span>
+                            </template>
+
+                            <!-- Resize handle -->
+                            <span
+                                v-if="col.resizable !== false"
+                                class="bst-resize-handle"
+                                @mousedown.stop.prevent="startResize(col, $event)"
+                            ></span>
                         </th>
                     </tr>
                 </thead>
 
                 <tbody v-if="filteredGroups.length === 0">
                     <tr class="bst-empty-row">
-                        <td colspan="12">
+                        <td :colspan="columns.length">
                             <div class="bst-empty">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
                                 <span v-if="search">No results match "{{ search }}"</span>
@@ -81,7 +72,10 @@
                 <template v-for="(g, gi) in filteredGroups" :key="g.headerId">
                     <tbody
                         class="bst-group"
-                        :class="{ 'bst-group-alt': gi % 2 === 1 }"
+                        :class="{
+                            'bst-group-alt': gi % 2 === 1,
+                            'bst-group-checked': isSelected(g.headerId),
+                        }"
                     >
                         <tr
                             v-for="(item, ii) in g.displayItems"
@@ -152,16 +146,6 @@
                                     {{ item.indicator }}
                                 </span>
                             </td>
-
-                            <!-- Header-level: SKUs count -->
-                            <td v-if="ii === 0" :rowspan="g.displayItems.length" class="bst-num-col bst-merged">
-                                {{ g.header.unique_skus ?? 0 }}
-                            </td>
-
-                            <!-- Header-level: Sum -->
-                            <td v-if="ii === 0" :rowspan="g.displayItems.length" class="bst-num-col bst-merged">
-                                {{ g.header.total_quantity ?? 0 }}
-                            </td>
                         </tr>
                     </tbody>
                 </template>
@@ -171,7 +155,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 
 function formatDate(v) {
     if (v == null || v === '') return '\u2014';
@@ -209,6 +193,19 @@ const STATUS_COLORS = {
     'Released':                 { bg: '#f3f4f6', color: '#6b7280' },
 };
 
+const DEFAULT_COLUMNS = [
+    { key: 'checkbox', label: '',          defaultWidth: 36,  resizable: false, thClass: 'bst-chk-col' },
+    { key: 'bn',       label: 'BN',        defaultWidth: 100, sortField: 'bookingnumber' },
+    { key: 'pic',      label: 'PIC',       defaultWidth: 120, sortField: 'pic' },
+    { key: 'title',    label: 'Title',     defaultWidth: 180, sortField: 'bookingtitle' },
+    { key: 'image',    label: '',          defaultWidth: 44,  resizable: false, thClass: 'bst-img-col' },
+    { key: 'sku',      label: 'SKU',       defaultWidth: 160, sortField: 'sku' },
+    { key: 'qty',      label: 'Qty',       defaultWidth: 55,  sortField: 'quantity', thClass: 'bst-num-col' },
+    { key: 'status',   label: 'Status',    defaultWidth: 120, sortField: 'status' },
+    { key: 'updated',  label: 'Updated',   defaultWidth: 110, sortField: 'created_at' },
+    { key: 'indicator',label: 'Indicator', defaultWidth: 100 },
+];
+
 export default {
     props: {
         content: { type: Object, required: true },
@@ -229,9 +226,64 @@ export default {
             }
         }
 
-        // Reactivity trigger for post-mount re-evaluation
         const mounted = ref(false);
         onMounted(() => nextTick(() => { mounted.value = true; }));
+
+        // ── Columns with configurable defaults ──
+
+        const columns = computed(() => {
+            const overrides = props.content?.columnWidths || {};
+            return DEFAULT_COLUMNS.map(c => ({
+                ...c,
+                defaultWidth: overrides[c.key] || c.defaultWidth,
+            }));
+        });
+
+        // ── Column resize ──
+
+        const WIDTHS_KEY = 'bst_widths_' + props.uid;
+        function loadWidths() {
+            try { return JSON.parse(localStorage.getItem(WIDTHS_KEY) || '{}'); } catch { return {}; }
+        }
+        function saveWidths(m) {
+            try { localStorage.setItem(WIDTHS_KEY, JSON.stringify(m)); } catch { /* */ }
+        }
+
+        const widthOverrides = ref(loadWidths());
+
+        function getColWidth(col) {
+            return widthOverrides.value[col.key] || col.defaultWidth;
+        }
+
+        let resizing = null;
+
+        function startResize(col, e) {
+            resizing = { key: col.key, startX: e.clientX, startW: getColWidth(col) };
+            document.addEventListener('mousemove', onResizeMove);
+            document.addEventListener('mouseup', onResizeEnd);
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        }
+
+        function onResizeMove(e) {
+            if (!resizing) return;
+            const newW = Math.max(30, resizing.startW + (e.clientX - resizing.startX));
+            widthOverrides.value = { ...widthOverrides.value, [resizing.key]: newW };
+        }
+
+        function onResizeEnd() {
+            if (resizing) saveWidths(widthOverrides.value);
+            resizing = null;
+            document.removeEventListener('mousemove', onResizeMove);
+            document.removeEventListener('mouseup', onResizeEnd);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+
+        onBeforeUnmount(() => {
+            document.removeEventListener('mousemove', onResizeMove);
+            document.removeEventListener('mouseup', onResizeEnd);
+        });
 
         // ── Data sources ──
 
@@ -342,7 +394,7 @@ export default {
             return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
         }
 
-        const HEADER_FIELDS = ['bookingnumber', 'bookingtitle', 'created_at', 'unique_skus', 'total_quantity', 'pic'];
+        const HEADER_FIELDS = ['bookingnumber', 'bookingtitle', 'created_at', 'pic'];
 
         const sortedGroups = computed(() => {
             if (!sortField.value) return groups.value;
@@ -510,6 +562,7 @@ export default {
             '--bst-row-bg': props.content?.rowBgColor || '#ffffff',
             '--bst-row-alt': props.content?.rowAltBgColor || '#fafbfc',
             '--bst-row-hover': props.content?.rowHoverColor || '#f0f7ff',
+            '--bst-checked-bg': props.content?.selectedRowColor || '#eff6ff',
             '--bst-border': props.content?.borderColor || '#e5e7eb',
             '--bst-font': props.content?.fontFamily || "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
             '--bst-fs': props.content?.fontSize || '13px',
@@ -549,6 +602,7 @@ export default {
         }
 
         return {
+            columns, getColWidth, startResize,
             filteredGroups, totalItems,
             search,
             toggleSort, sortIcon,
@@ -657,6 +711,7 @@ thead {
         border-bottom: 1px solid var(--bst-border);
         white-space: nowrap;
         user-select: none;
+        position: relative;
     }
 }
 
@@ -671,12 +726,28 @@ thead {
     opacity: 0.7;
 }
 
-/* ── Column sizing ── */
+/* ── Resize handle ── */
+.bst-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -2px;
+    width: 5px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 3;
+
+    &:hover,
+    &:active {
+        background: rgba(59, 130, 246, 0.3);
+    }
+}
+
+/* ── Column classes ── */
 .bst-chk-col { width: 36px; text-align: center !important; }
-.bst-img-col { width: 40px; padding: 3px 6px !important; }
-.bst-num-col { text-align: right !important; width: 60px; }
+.bst-img-col { padding: 3px 6px !important; }
+.bst-num-col { text-align: right !important; }
 .bst-bn { font-weight: 600; white-space: nowrap; }
-.bst-title { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bst-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bst-date { white-space: nowrap; font-size: 11px; color: #6b7280; }
 
 /* ── Rows ── */
@@ -686,6 +757,9 @@ thead {
 
 .bst-group-alt tr { background: var(--bst-row-alt); }
 .bst-group-alt:hover tr { background: var(--bst-row-hover); }
+
+.bst-group-checked tr { background: var(--bst-checked-bg); }
+.bst-group-checked:hover tr { background: var(--bst-row-hover); }
 
 .bst-row {
     background: var(--bst-row-bg);
@@ -711,7 +785,6 @@ thead {
 .bst-merged {
     border-right: 1px solid #f0f0f0;
 }
-
 
 .bst-muted { color: #d1d5db; }
 
