@@ -503,13 +503,17 @@ export default {
         const filteredGroups = computed(() => {
             let result = sortedGroups.value;
 
-            // Status filter: keep groups that have at least one line item matching a checked status
+            // Status filter: filter line items within each group, drop groups with no matches
             if (statusFilter.value.size > 0) {
                 const allowed = statusFilter.value;
-                result = result.filter(g => {
-                    if (g.itemCount === 0) return false;
-                    return g.items.some(li => allowed.has(li.status));
-                });
+                result = result
+                    .map(g => {
+                        if (g.itemCount === 0) return null;
+                        const filtered = g.items.filter(li => allowed.has(li.status));
+                        if (filtered.length === 0) return null;
+                        return { ...g, items: filtered, displayItems: filtered, itemCount: filtered.length };
+                    })
+                    .filter(Boolean);
             }
 
             // Text search
