@@ -368,7 +368,12 @@ export default {
     emits: ['trigger-event'],
     setup(props, { emit }) {
 
-        const { resolveMappingFormula } = wwLib.wwFormula.useFormula();
+        /* Safe wrapper — wwLib.wwFormula may not be ready on first mount */
+        let resolveMappingFormula = () => undefined;
+        try {
+            const f = wwLib.wwFormula.useFormula();
+            if (f?.resolveMappingFormula) resolveMappingFormula = f.resolveMappingFormula;
+        } catch (_) { /* will be available on re-mount */ }
 
         // ═══════════ 1. RESOLVE COLLECTIONS ═══════════
 
@@ -902,11 +907,15 @@ export default {
 
         // ═══════════ 11. COMPONENT VARIABLES ═══════════
 
-        const selectedHeaderIdsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Header IDs', type: 'array', defaultValue: [], readonly: true });
-        const selectedHeaderObjectsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Headers', type: 'array', defaultValue: [], readonly: true });
-        const selectedLineItemIdsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Line Item IDs', type: 'array', defaultValue: [], readonly: true });
-        const selectedLineItemObjectsVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Selected Line Items', type: 'array', defaultValue: [], readonly: true });
-        const activeHeaderVar = wwLib.wwVariable.useComponentVariable({ uid: props.uid, name: 'Active Header', type: 'object', defaultValue: null, readonly: true });
+        /* Safe wrapper — wwLib.wwVariable may not be ready on first mount */
+        function safeComponentVar(opts) {
+            try { return wwLib.wwVariable.useComponentVariable(opts); } catch (_) { return null; }
+        }
+        const selectedHeaderIdsVar = safeComponentVar({ uid: props.uid, name: 'Selected Header IDs', type: 'array', defaultValue: [], readonly: true });
+        const selectedHeaderObjectsVar = safeComponentVar({ uid: props.uid, name: 'Selected Headers', type: 'array', defaultValue: [], readonly: true });
+        const selectedLineItemIdsVar = safeComponentVar({ uid: props.uid, name: 'Selected Line Item IDs', type: 'array', defaultValue: [], readonly: true });
+        const selectedLineItemObjectsVar = safeComponentVar({ uid: props.uid, name: 'Selected Line Items', type: 'array', defaultValue: [], readonly: true });
+        const activeHeaderVar = safeComponentVar({ uid: props.uid, name: 'Active Header', type: 'object', defaultValue: null, readonly: true });
 
         watch(activeGroupId, (id) => {
             const group = groups.value.find(g => g.headerId === id);
