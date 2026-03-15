@@ -81,11 +81,7 @@
                 <template v-for="(g, gi) in filteredGroups" :key="g.headerId">
                     <tbody
                         class="bst-group"
-                        :class="{
-                            'bst-group-alt': gi % 2 === 1,
-                            'bst-group-selected': isSelected(g.headerId),
-                            'bst-group-active': activeId === g.headerId,
-                        }"
+                        :class="{ 'bst-group-alt': gi % 2 === 1 }"
                     >
                         <tr
                             v-for="(item, ii) in g.displayItems"
@@ -514,8 +510,6 @@ export default {
             '--bst-row-bg': props.content?.rowBgColor || '#ffffff',
             '--bst-row-alt': props.content?.rowAltBgColor || '#fafbfc',
             '--bst-row-hover': props.content?.rowHoverColor || '#f0f7ff',
-            '--bst-sel-bg': props.content?.selectedRowColor || '#dbeafe',
-            '--bst-active-bg': props.content?.activeRowColor || '#e0f2fe',
             '--bst-border': props.content?.borderColor || '#e5e7eb',
             '--bst-font': props.content?.fontFamily || "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
             '--bst-fs': props.content?.fontSize || '13px',
@@ -691,13 +685,12 @@ thead {
 }
 
 .bst-group-alt tr { background: var(--bst-row-alt); }
+.bst-group-alt:hover tr { background: var(--bst-row-hover); }
 
 .bst-row {
     background: var(--bst-row-bg);
     cursor: pointer;
     transition: background 0.1s;
-
-    &:hover { background: var(--bst-row-hover); }
 
     td {
         padding: 5px 10px;
@@ -705,6 +698,10 @@ thead {
         font-size: var(--bst-fs);
         vertical-align: middle;
     }
+}
+
+.bst-group:hover tr {
+    background: var(--bst-row-hover);
 }
 
 .bst-row:not(.bst-row-first) td {
@@ -715,14 +712,6 @@ thead {
     border-right: 1px solid #f0f0f0;
 }
 
-.bst-group-selected tr {
-    background: var(--bst-sel-bg) !important;
-    &:hover { filter: brightness(0.97); }
-}
-
-.bst-group-active tr {
-    background: var(--bst-active-bg) !important;
-}
 
 .bst-muted { color: #d1d5db; }
 

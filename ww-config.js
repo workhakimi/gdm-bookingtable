@@ -138,8 +138,6 @@ export default {
         rowBgColor: { label: { en: 'Row background' }, type: 'Color', section: 'style', defaultValue: '#ffffff' },
         rowAltBgColor: { label: { en: 'Alternate group bg' }, type: 'Color', section: 'style', defaultValue: '#fafbfc' },
         rowHoverColor: { label: { en: 'Row hover' }, type: 'Color', section: 'style', defaultValue: '#f0f7ff' },
-        selectedRowColor: { label: { en: 'Selected row' }, type: 'Color', section: 'style', defaultValue: '#dbeafe' },
-        activeRowColor: { label: { en: 'Active row' }, type: 'Color', section: 'style', defaultValue: '#e0f2fe' },
         borderColor: { label: { en: 'Border color' }, type: 'Color', section: 'style', defaultValue: '#e5e7eb' },
         statusColorMap: {
             label: { en: 'Status color map (JSON)' },
