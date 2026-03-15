@@ -49,9 +49,10 @@
                             <!-- Status filter button -->
                             <button
                                 v-if="col.key === 'status'"
+                                ref="filterBtn"
                                 class="bst-filter-btn"
                                 :class="{ 'bst-filter-btn-active': hasStatusFilter }"
-                                @click.stop="showStatusFilter = !showStatusFilter"
+                                @click.stop="toggleFilterDropdown"
                                 title="Filter by status"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -64,16 +65,6 @@
                                 @mousedown.stop.prevent="startResize(col, $event)"
                             ></span>
 
-                            <!-- Status filter dropdown -->
-                            <div v-if="col.key === 'status' && showStatusFilter" class="bst-filter-drop" @click.stop>
-                                <label v-for="s in STATUS_OPTIONS" :key="s" class="bst-filter-opt">
-                                    <input type="checkbox" :checked="isStatusVisible(s)" @change="toggleStatusFilter(s)" />
-                                    <span class="bst-badge" :style="badgeStyle(s)">{{ s }}</span>
-                                </label>
-                                <div class="bst-filter-actions">
-                                    <button @click="clearStatusFilter">Clear</button>
-                                </div>
-                            </div>
                         </th>
                     </tr>
                 </thead>
@@ -172,6 +163,17 @@
                     </tbody>
                 </template>
             </table>
+        </div>
+
+        <!-- Status filter dropdown (outside scroll container to avoid clipping) -->
+        <div v-if="showStatusFilter" class="bst-filter-drop" :style="filterDropStyle" @click.stop>
+            <label v-for="s in STATUS_OPTIONS" :key="s" class="bst-filter-opt">
+                <input type="checkbox" :checked="isStatusVisible(s)" @change="toggleStatusFilter(s)" />
+                <span class="bst-badge" :style="badgeStyle(s)">{{ s }}</span>
+            </label>
+            <div class="bst-filter-actions">
+                <button @click="clearStatusFilter">Clear</button>
+            </div>
         </div>
     </div>
 </template>
@@ -449,6 +451,28 @@ export default {
         const STATUS_OPTIONS = ['Released', 'Issue Raised', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'];
         const showStatusFilter = ref(false);
         const statusFilter = ref(new Set()); // empty = show all
+        const filterBtn = ref(null);
+        const filterDrop = ref(null);
+        const filterDropPos = ref({ top: 0, left: 0 });
+
+        function updateFilterPos() {
+            const btn = filterBtn.value;
+            if (!btn) return;
+            const rect = btn.getBoundingClientRect();
+            filterDropPos.value = { top: rect.bottom + 2, left: rect.left };
+        }
+
+        function toggleFilterDropdown() {
+            showStatusFilter.value = !showStatusFilter.value;
+            if (showStatusFilter.value) {
+                nextTick(updateFilterPos);
+            }
+        }
+
+        const filterDropStyle = computed(() => ({
+            top: filterDropPos.value.top + 'px',
+            left: filterDropPos.value.left + 'px',
+        }));
 
         const hasStatusFilter = computed(() => statusFilter.value.size > 0);
 
@@ -667,6 +691,7 @@ export default {
             filteredGroups, totalItems,
             search,
             STATUS_OPTIONS, showStatusFilter, statusFilter, hasStatusFilter,
+            filterBtn, filterDrop, filterDropStyle, toggleFilterDropdown,
             isStatusVisible, toggleStatusFilter, clearStatusFilter,
             toggleSort, sortIcon,
             selectedIds, activeId, isSelected,
@@ -817,17 +842,14 @@ thead {
 }
 
 .bst-filter-drop {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 10;
+    position: fixed;
+    z-index: 9999;
     min-width: 200px;
     background: #fff;
     border: 1px solid var(--bst-border);
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     padding: 6px 0;
-    margin-top: 2px;
 }
 
 .bst-filter-opt {
