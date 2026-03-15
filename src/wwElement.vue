@@ -450,13 +450,12 @@ export default {
 
         const STATUS_OPTIONS = ['Released', 'Issue Raised', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'];
         const showStatusFilter = ref(false);
-        const statusFilter = ref(new Set(['Issue Raised', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'])); // default: all except Released
+        // hiddenStatuses: statuses to HIDE. Default: Released is hidden.
+        const hiddenStatuses = ref(new Set(['Released']));
         const filterBtn = ref(null);
-        const filterDrop = ref(null);
         const filterDropPos = ref({ top: 0, left: 0 });
 
         function updateFilterPos() {
-            // ref inside v-for returns an array
             const btn = Array.isArray(filterBtn.value) ? filterBtn.value[0] : filterBtn.value;
             if (!btn) return;
             const rect = btn.getBoundingClientRect();
@@ -475,24 +474,24 @@ export default {
             left: filterDropPos.value.left + 'px',
         }));
 
-        const hasStatusFilter = computed(() => statusFilter.value.size > 0);
+        const hasStatusFilter = computed(() => hiddenStatuses.value.size > 0);
 
         function isStatusVisible(s) {
-            return statusFilter.value.size === 0 || statusFilter.value.has(s);
+            return !hiddenStatuses.value.has(s);
         }
 
         function toggleStatusFilter(s) {
-            const next = new Set(statusFilter.value);
+            const next = new Set(hiddenStatuses.value);
             if (next.has(s)) {
-                next.delete(s);
+                next.delete(s); // unhide → show
             } else {
-                next.add(s);
+                next.add(s); // hide
             }
-            statusFilter.value = next;
+            hiddenStatuses.value = next;
         }
 
         function clearStatusFilter() {
-            statusFilter.value = new Set();
+            hiddenStatuses.value = new Set();
             showStatusFilter.value = false;
         }
 
@@ -503,13 +502,13 @@ export default {
         const filteredGroups = computed(() => {
             let result = sortedGroups.value;
 
-            // Status filter: filter line items within each group, drop groups with no matches
-            if (statusFilter.value.size > 0) {
-                const allowed = statusFilter.value;
+            // Status filter: hide individual line items whose status is hidden
+            if (hiddenStatuses.value.size > 0) {
+                const hidden = hiddenStatuses.value;
                 result = result
                     .map(g => {
                         if (g.itemCount === 0) return null;
-                        const filtered = g.items.filter(li => allowed.has(li.status));
+                        const filtered = g.items.filter(li => !hidden.has(li.status));
                         if (filtered.length === 0) return null;
                         return { ...g, items: filtered, displayItems: filtered, itemCount: filtered.length };
                     })
@@ -695,8 +694,8 @@ export default {
             columns, getColWidth, startResize,
             filteredGroups, totalItems,
             search,
-            STATUS_OPTIONS, showStatusFilter, statusFilter, hasStatusFilter,
-            filterBtn, filterDrop, filterDropStyle, toggleFilterDropdown,
+            STATUS_OPTIONS, showStatusFilter, hasStatusFilter,
+            filterBtn, filterDropStyle, toggleFilterDropdown,
             isStatusVisible, toggleStatusFilter, clearStatusFilter,
             toggleSort, sortIcon,
             selectedIds, activeId, isSelected,
