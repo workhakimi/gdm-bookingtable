@@ -1,5 +1,5 @@
 <template>
-    <div class="bst" :style="rootVars">
+    <div class="bst" :style="rootVars" @click="showStatusFilter = false">
         <!-- Search bar -->
         <div class="bst-bar">
             <div class="bst-search">
@@ -46,12 +46,34 @@
                                 <span v-if="col.sortField" class="bst-sort-icon">{{ sortIcon(col.sortField) }}</span>
                             </template>
 
+                            <!-- Status filter button -->
+                            <button
+                                v-if="col.key === 'status'"
+                                class="bst-filter-btn"
+                                :class="{ 'bst-filter-btn-active': hasStatusFilter }"
+                                @click.stop="showStatusFilter = !showStatusFilter"
+                                title="Filter by status"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                            </button>
+
                             <!-- Resize handle -->
                             <span
                                 v-if="col.resizable !== false"
                                 class="bst-resize-handle"
                                 @mousedown.stop.prevent="startResize(col, $event)"
                             ></span>
+
+                            <!-- Status filter dropdown -->
+                            <div v-if="col.key === 'status' && showStatusFilter" class="bst-filter-drop" @click.stop>
+                                <label v-for="s in STATUS_OPTIONS" :key="s" class="bst-filter-opt">
+                                    <input type="checkbox" :checked="isStatusVisible(s)" @change="toggleStatusFilter(s)" />
+                                    <span class="bst-badge" :style="badgeStyle(s)">{{ s }}</span>
+                                </label>
+                                <div class="bst-filter-actions">
+                                    <button @click="clearStatusFilter">Clear</button>
+                                </div>
+                            </div>
                         </th>
                     </tr>
                 </thead>
@@ -422,15 +444,54 @@ export default {
             });
         });
 
+        // ── Status filter ──
+
+        const STATUS_OPTIONS = ['Released', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'];
+        const showStatusFilter = ref(false);
+        const statusFilter = ref(new Set()); // empty = show all
+
+        const hasStatusFilter = computed(() => statusFilter.value.size > 0);
+
+        function isStatusVisible(s) {
+            return statusFilter.value.size === 0 || statusFilter.value.has(s);
+        }
+
+        function toggleStatusFilter(s) {
+            const next = new Set(statusFilter.value);
+            if (next.has(s)) {
+                next.delete(s);
+            } else {
+                next.add(s);
+            }
+            statusFilter.value = next;
+        }
+
+        function clearStatusFilter() {
+            statusFilter.value = new Set();
+            showStatusFilter.value = false;
+        }
+
         // ── Search ──
 
         const search = ref('');
 
         const filteredGroups = computed(() => {
-            const q = normalize(search.value);
-            if (!q) return sortedGroups.value;
+            let result = sortedGroups.value;
 
-            return sortedGroups.value.filter(g => {
+            // Status filter: keep groups that have at least one line item matching a checked status
+            if (statusFilter.value.size > 0) {
+                const allowed = statusFilter.value;
+                result = result.filter(g => {
+                    if (g.itemCount === 0) return false;
+                    return g.items.some(li => allowed.has(li.status));
+                });
+            }
+
+            // Text search
+            const q = normalize(search.value);
+            if (!q) return result;
+
+            return result.filter(g => {
                 const h = g.header;
                 if (normalize(h.bookingnumber).includes(q)) return true;
                 if (normalize(h.bookingtitle).includes(q)) return true;
@@ -605,6 +666,8 @@ export default {
             columns, getColWidth, startResize,
             filteredGroups, totalItems,
             search,
+            STATUS_OPTIONS, showStatusFilter, statusFilter, hasStatusFilter,
+            isStatusVisible, toggleStatusFilter, clearStatusFilter,
             toggleSort, sortIcon,
             selectedIds, activeId, isSelected,
             toggleSelect, toggleSelectAll, allSelected, someSelected,
@@ -724,6 +787,86 @@ thead {
     font-size: 9px;
     margin-left: 2px;
     opacity: 0.7;
+}
+
+/* ── Status filter ── */
+.bst-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    transition: color 0.1s, background 0.1s;
+
+    svg { width: 12px; height: 12px; }
+
+    &:hover { color: #374151; background: #e5e7eb; }
+}
+
+.bst-filter-btn-active {
+    color: #3b82f6 !important;
+    &:hover { color: #2563eb !important; }
+}
+
+.bst-filter-drop {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 10;
+    min-width: 200px;
+    background: #fff;
+    border: 1px solid var(--bst-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 6px 0;
+    margin-top: 2px;
+}
+
+.bst-filter-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #374151;
+    transition: background 0.1s;
+
+    &:hover { background: #f9fafb; }
+
+    input[type="checkbox"] {
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+    }
+}
+
+.bst-filter-actions {
+    border-top: 1px solid #f3f4f6;
+    padding: 4px 12px;
+    margin-top: 2px;
+
+    button {
+        border: none;
+        background: none;
+        color: #6b7280;
+        font-size: 11px;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 3px;
+        &:hover { color: #111827; background: #f3f4f6; }
+    }
 }
 
 /* ── Resize handle ── */
