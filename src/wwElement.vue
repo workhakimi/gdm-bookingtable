@@ -446,7 +446,7 @@ export default {
 
         // ── Status filter ──
 
-        const STATUS_OPTIONS = ['Released', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'];
+        const STATUS_OPTIONS = ['Released', 'Issue Raised', 'Booked', 'Processing', 'Delivered to Production', 'Delivered to Client'];
         const showStatusFilter = ref(false);
         const statusFilter = ref(new Set()); // empty = show all
 
@@ -949,8 +949,8 @@ thead {
 /* ── Badges ── */
 .bst-badge {
     display: inline-block;
-    padding: 1px 7px;
-    border-radius: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
     font-size: 11px;
     font-weight: 500;
     white-space: nowrap;
