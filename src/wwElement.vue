@@ -167,10 +167,10 @@
 
         <!-- Status filter dropdown (outside scroll container to avoid clipping) -->
         <div v-if="showStatusFilter" class="bst-filter-drop" :style="filterDropStyle" @click.stop>
-            <label v-for="s in STATUS_OPTIONS" :key="s" class="bst-filter-opt">
-                <input type="checkbox" :checked="isStatusVisible(s)" @change="toggleStatusFilter(s)" />
+            <div v-for="s in STATUS_OPTIONS" :key="s" class="bst-filter-opt" @click="toggleStatusFilter(s)">
+                <input type="checkbox" :checked="isStatusVisible(s)" @click.prevent />
                 <span class="bst-badge" :style="badgeStyle(s)">{{ s }}</span>
-            </label>
+            </div>
             <div class="bst-filter-actions">
                 <button @click="clearStatusFilter">Clear</button>
             </div>
