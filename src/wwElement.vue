@@ -161,23 +161,23 @@
                             </td>
 
                             <!-- Line-item: Status -->
-                            <td class="bst-before-merged">
+                            <td>
                                 <span v-if="!item._empty && item.status" class="bst-badge" :style="badgeStyle(item.status)">
                                     {{ item.status }}
                                 </span>
                                 <span v-else-if="!item._empty" class="bst-muted">&mdash;</span>
                             </td>
 
-                            <!-- Header-level: Updated -->
-                            <td v-if="ii === 0" :rowspan="g.displayItems.length" class="bst-date bst-merged">
-                                {{ formatDate(g.header.created_at) }}
-                            </td>
-
                             <!-- Line-item: Indicator -->
-                            <td class="bst-after-merged">
+                            <td class="bst-before-merged">
                                 <span v-if="!item._empty && item.indicator" class="bst-badge" :style="indicatorBadgeStyle(item.indicator)">
                                     {{ item.indicator }}
                                 </span>
+                            </td>
+
+                            <!-- Header-level: Updated (last column) -->
+                            <td v-if="ii === 0" :rowspan="g.displayItems.length" class="bst-date bst-after-merged">
+                                {{ formatDate(g.header.created_at) }}
                             </td>
                         </tr>
                     </tbody>
@@ -270,8 +270,8 @@ const DEFAULT_COLUMNS = [
     { key: 'sku',      label: 'SKU',       defaultWidth: 160, sortField: 'sku' },
     { key: 'qty',      label: 'Qty',       defaultWidth: 55,  sortField: 'quantity', thClass: 'bst-num-col' },
     { key: 'status',   label: 'Status',    defaultWidth: 120, sortField: 'status' },
-    { key: 'updated',  label: 'Updated',   defaultWidth: 110, sortField: 'created_at' },
     { key: 'indicator',label: 'Indicator', defaultWidth: 100 },
+    { key: 'updated',  label: 'Updated',   defaultWidth: 110, sortField: 'created_at' },
 ];
 
 export default {
